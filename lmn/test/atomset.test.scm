@@ -88,7 +88,7 @@
 
 ;; ----------------------
 
-(test-section "<atomset> members")
+(test-section "<atomset> membership")
 
 (test* "atomset-atoms (1)"
        (list atomc2)

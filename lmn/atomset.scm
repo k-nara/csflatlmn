@@ -112,7 +112,7 @@
 ;;          B                 B                       B bar<--+
 ;; ※ 正しく動くのは１度だけで、atomset は使い捨てになることに注意
 
-;; ---- members
+;; ---- membership
 
 (define (atomset-atoms set :optional [functor #f])
   ;; SET に含まれる、ファンクタが FUNCTOR であるようなアトムのリストを
