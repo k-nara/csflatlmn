@@ -28,8 +28,8 @@
 
 (define-class <portptr> ()
   ;; アトムのポートを指定するオブジェクト。
-  ((atom :init-keyword :atom)
-   (ix   :init-keyword :ix)))
+  ((atom :init-keyword :atom) ;; Atom
+   (ix   :init-keyword :ix))) ;; Nat
 
 (define (port-atom ptr)
   ;; PTR の指すポートを持つアトムを取得する。

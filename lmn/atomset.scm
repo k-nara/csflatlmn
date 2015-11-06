@@ -117,9 +117,11 @@
 (define (atomset-atoms set :optional [functor #f])
   ;; SET に含まれる、ファンクタが FUNCTOR であるようなアトムのリストを
   ;; 取得する。ファンクタが省略された場合、すべてのアトムのリストを取得
-  ;; する。ファンクタを指定した場合、リストは O(1) で得られるがこれを破
-  ;; 壊するともとの SET まで破壊されることに注意する。ファンクタを省略
-  ;; した場合、新しいリストを生成するため O(n) のコストを要する。
+  ;; する。ファンクタを省略した場合、新しいリストを生成するために O(n)
+  ;; の時間を要する。ファンクタを指定した場合、リストは O(1) で得られる
+  ;; が、これを破壊するともとの SET まで破壊されるためあらかじめコピー
+  ;; を取らなければならない。ただし、破壊したリストを後に
+  ;; atomset-set-atoms! でセットする場合その必要はない。
   (if functor
       (hash-table-get (slot-ref set 'atoms) functor ())
       (apply append (hash-table-values (slot-ref set 'atoms)))))
