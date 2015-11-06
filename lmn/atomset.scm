@@ -243,14 +243,6 @@
                   (cons (list n m) (loop (delete1! m (cdr lst)))))
                 (loop (cdr lst))))))))
 
-;; (内部関数) <portptr> をハッシュテーブルのキーにするために hash メソッ
-;; ドと equal? メソッドを提供しなければいけない
-(define-method object-hash ((portptr <portptr>))
-  (+ (eq-hash (slot-ref portptr 'atom)) (slot-ref portptr 'ix)))
-(define-method object-equal? ((p1 <portptr>) (p2 <portptr>))
-  (and (atom=? (slot-ref p1 'atom) (slot-ref p2 'atom))
-       (= (slot-ref p1 'ix) (slot-ref p2 'ix))))
-
 (define (atomset->sexp set)
   ;; well-formed なアトム集合 SET の S 式表現を生成する。アトムは文字列
   ;; から始まるリストで、極力 「最終引数の略記」を用いた形で表現される。

@@ -1,8 +1,8 @@
 (define-module lmn.atom
   (export <portptr> port-atom port-ix port=?
-          <atom> make-atom atom-name atom-arity atom-functor atom-arg atom-set-arg! atom-port atom=?
-          port-partner port-set-partner! port-connect! port-connected? functor
-          atom-copy atom-partner))
+          <atom> make-atom atom-name atom-arity atom-functor atom-arg
+          atom-set-arg! atom-port atom=? port-partner port-set-partner!
+          port-connect! port-connected? functor atom-copy atom-partner))
 
 (select-module lmn.atom)
 
@@ -151,7 +151,7 @@
   (eq? a1 a2))
 
 (define-method object-hash ((ptr <portptr>))
-  (+ (hash (slot-ref ptr 'atom)) (hash (slot-ref ptr 'ix))))
+  (+ (hash (slot-ref ptr 'atom)) (slot-ref ptr 'ix)))
 
 (define-method object-hash ((atom <atom>))
-  (+ (hash (slot-ref atom 'name)) (hash (slot-ref atom 'args))))
+  (eq-hash atom))
