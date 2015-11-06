@@ -1,23 +1,25 @@
 (define-module lmn.stack
-  (export <stack> make-stack stack-push! stack-pop!
-          stack-length stack-empty? stack-ref))
+  (export <stack> *stack-allocation-unit*
+          make-stack stack-push! stack-pop! stack-length stack-empty? stack-ref))
 
 (select-module lmn.stack)
 
-;; スタックを提供する。このライブラリの提供するスタックは push/pop 以外
-;; の方法で変更することができない代わりに、要素へのランダムアクセスがで
-;; きる。内部的には Java の ArrayList のように適宜拡大される配列で、ア
-;; ロケーションユニットごとに全体がコピーされる。
+;; スタックを提供する。このライブラリの提供するスタックは 「先頭に要素
+;; を追加する」 「先頭の要素を廃棄する」の２つの方法でのみ変更すること
+;; ができ、また要素へのランダムアクセスができる。内部的には Java の
+;; ArrayList のように適宜拡大される配列で、アロケーションユニットごとに
+;; 全体がコピーされるので注意する。
 
 (define-class <stack> ()
   ;; スタックのオブジェクト。
-  ((alloc-unit :init-keyword :alloc-unit) ;; Nat
-   (data :init-keyword :data)             ;; Vector
-   (length :init-keyword :length)))       ;; Int
+  ((data :init-keyword :data)       ;; Vector
+   (length :init-keyword :length))) ;; Int
 
-(define (make-stack :optional [alloc-unit 30])
+(define *stack-allocation-unit* 30)
+
+(define (make-stack)
   ;; スタックを作成する。
-  (make <stack> :alloc-unit alloc-unit :data (make-vector alloc-unit) :length 0))
+  (make <stack> :data (make-vector *stack-allocation-unit*) :length 0))
 
 (define (stack-push! stack obj)
   ;; STACK にオブジェクト OBJ を push する。
@@ -25,7 +27,7 @@
         [data (slot-ref stack 'data)])
     ;; 配列が小さければ拡大する
     (when (= length (vector-length data))
-      (let1 newdata (vector-copy data 0 (+ length (slot-ref stack 'alloc-unit)))
+      (let1 newdata (vector-copy data 0 (+ length *stack-allocation-unit*))
         (slot-set! stack 'data newdata)
         (set! data newdata)))
     ;; オブジェクトを追加
