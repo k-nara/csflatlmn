@@ -21,9 +21,17 @@
   ;; スタックを作成する。
   (make <stack> :data (make-vector *stack-allocation-unit*) :length 0))
 
+(define (stack-length stack)
+  ;; STACK に含まれる要素の数を返す。
+  (slot-ref stack 'length))
+
+(define (stack-empty? stack)
+  ;; STACK が空の場合に限り #f でない値を返す。
+  (= (stack-length stack) 0))
+
 (define (stack-push! stack obj)
   ;; STACK にオブジェクト OBJ を push する。
-  (let ([length (slot-ref stack 'length)]
+  (let ([length (stack-length stack)]
         [data (slot-ref stack 'data)])
     ;; 配列が小さければ拡大する
     (when (= length (vector-length data))
@@ -35,26 +43,18 @@
     (slot-set! stack 'length (+ 1 length))))
 
 (define (stack-pop! stack :optional [n 1])
-  ;; STACK からオブジェクトを N つ捨てる。 push した数以上のオブジェク
-  ;; トを捨てるとエラーになる。
-  (let ([length (slot-ref stack 'length)]
+  ;; STACK からオブジェクトを N つ捨てる (N にかかわらず定数時間) 。
+  ;; push した数以上のオブジェクトを捨てるとエラーになる。
+  (let ([length (stack-length stack)]
         [data (slot-ref stack 'data)])
     (when (< length n)
       (error "Cannot operate pop for an empty stack."))
     (slot-set! stack 'length (- length n))))
 
-(define (stack-length stack)
-  ;; STACK に含まれる要素の数を返す。
-  (slot-ref stack 'length))
-
-(define (stack-empty? stack)
-  ;; STACK が空の場合に限り #f でない値を返す。
-  (= (slot-ref stack 'length) 0))
-
 (define (stack-ref stack n)
   ;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。その
   ;; ようなオブジェクトがない場合にはエラーになる。
   (unless (and (>= n 0)
-               (< n (slot-ref stack 'length)))
+               (< n (stack-length stack)))
     (error "Stack boundary error."))
   (vector-ref (slot-ref stack 'data) n))
