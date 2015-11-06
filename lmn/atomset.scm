@@ -1,18 +1,20 @@
 (define-module lmn.atomset
+  (use gauche.collection)
   (use lmn.util)
   (use lmn.atom)
   (export <atomset> make-atomset atomset-arity atomset-set-port! atomset-port
-          atomset-arg atomset-set-arg! atomset-add-direct-link! atomset-atoms
-          atomset-set-atoms! atomset-add-atom! atomset-find-atom atomset-remove-atom!
-          atomset-member atomset-copy atomset-map-atoms atomset-head
-          atomset->sexp sexp->atomset atomset-deep-copy))
+          atomset-arg atomset-set-arg! atomset-add-direct-link!
+          atomset-add-atom! atomset-remove-atom! atomset-member
+          atomset-atoms atomset-get-iterator atomset-find-atom
+          atomset-map-atoms atomset-copy atomset-head atomset->sexp
+          sexp->atomset atomset-deep-copy))
 
 (select-module lmn.atomset)
 
 ;; 自由リンク管理機能を備えたアトムの集合 <atomset> を提供する。
-;; <atomset> にはアトムを追加・削除することができ、また <atomset> から
-;; 所定のファンクタを持つアトム (あるいはそのリスト)を定数時間で取り出
-;; すことができる。
+;; <atomset> はアトムの追加・削除、あるアトムが含まれているかの確認を定
+;; 数時間で行うことができ、また <atomset> から所定のファンクタを持つア
+;; トム (を次々に取り出すイテレータ) を定数時間で取得することができる。
 ;;
 ;; N 価の <atomset> は N つのポートを持つ。 <atomset> のポートはその
 ;; <atomset> に含まれるアトムのポートをセットするか、あるいは同じ
@@ -32,7 +34,7 @@
 ;; ---- <atomset>
 
 (define-class <atomset> ()
-  ((atoms :init-keyword :atoms) ;; Map[Functor, List[<atom>]]
+  ((atoms :init-keyword :atoms)   ;; Map[Functor, Map[<atom>, _]]
    (proxy :init-keyword :proxy))) ;; Atom
 
 (define (make-atomset :optional [arity 0])
@@ -114,64 +116,68 @@
 
 ;; ---- membership
 
-(define (atomset-atoms set :optional [functor #f])
-  ;; SET に含まれる、ファンクタが FUNCTOR であるようなアトムのリストを
-  ;; 取得する。ファンクタが省略された場合、すべてのアトムのリストを取得
-  ;; する。ファンクタを省略した場合、新しいリストを生成するために O(n)
-  ;; の時間を要する。ファンクタを指定した場合、リストは O(1) で得られる
-  ;; が、これを破壊するともとの SET まで破壊されるためあらかじめコピー
-  ;; を取らなければならない。ただし、破壊したリストを後に
-  ;; atomset-set-atoms! でセットする場合その必要はない。
-  (if functor
-      (hash-table-get (slot-ref set 'atoms) functor ())
-      (apply append (hash-table-values (slot-ref set 'atoms)))))
-
-(define (atomset-set-atoms! set functor atoms)
-  ;; SET に含まれる、ファンクタが FUNCTOR であるようなアトムのリストを
-  ;; セットする。ファンクタは省略できない。
-  (hash-table-put! (slot-ref set 'atoms) functor atoms))
-
 (define (atomset-add-atom! set :rest atoms)
-  ;; SET にアトム ATOM を追加する。効率のために重複チェックを行わないの
-  ;; で、すでに SET に含まれているアトムを追加しないよう注意する。
-  (dolist [atom atoms]
-    (let* ([functor (atom-functor atom)]
-           [lst (atomset-atoms set functor)])
-      (atomset-set-atoms! set functor (cons atom lst))))
-  ;; ;; SET に ATOM がすでに含まれている場合は何もしない。重複の確認に
-  ;; ;; O(同じファンクタを持つアトムの数) のコストを要することに注意する。
-  ;; (dolist [atom atoms]
-  ;;   (let* ([functor (atom-functor atom)]
-  ;;          [lst (atomset-atoms set functor)])
-  ;;     (unless (memq atom lst)
-  ;;       (atomset-set-atoms! set functor (cons atom lst)))))
-  )
+  ;; SET にアトム ATOM を追加する。SET に ATOM がすでに含まれている場合
+  ;; は何もしない。追加するアトムの個数に比例する時間がかかる。
+  (let1 outer-hash (slot-ref set 'atoms)
+    (dolist [atom atoms]
+      (let1 functor (atom-functor atom)
+        (cond [(hash-table-get outer-hash functor #f) =>
+               (lambda (hash) (hash-table-put! hash atom #t))]
+              [else
+               (let1 hash (make-hash-table 'eq?)
+                 (hash-table-put! hash atom #t)
+                 (hash-table-put! outer-hash functor hash))])))))
 
 (define (atomset-remove-atom! set atom)
   ;; SET からアトム ATOM を取り除く。
-  (let* ([functor (atom-functor atom)]
-         [lst (atomset-atoms set functor)])
-    (when (memq atom lst)
-      (atomset-set-atoms! set functor (delete1! atom lst)))))
-
-(define (atomset-find-atom set :optional [functor #f] [fallback #f])
-  ;; SET に含まれる、ファンクタが FUNCTOR であるような適当なアトムを一
-  ;; つ取得する。 (car (atomset-atoms functor)) と異なり、 FUNCTOR が省
-  ;; 略された場合でも O(1) の効率を期待できる。条件を満たすアトムが存在
-  ;; しなかった場合 FALLBACK を返す。
-  (cond [functor
-         (let1 lst (atomset-atoms set functor)
-           (or (and (pair? lst) (car lst)) fallback))]
-        [else
-         (let/cc ret ;; foreach を最初のイテレーションで脱出して O(1)
-           (hash-table-for-each (slot-ref set 'atoms)
-             (^(key val) (when (pair? val) (ret (car val)))))
-           fallback)]))
+  (if-let1 hash (hash-table-get (slot-ref set 'atoms) (atom-functor atom) #f)
+    (hash-table-delete! hash atom)))
 
 (define (atomset-member set atom)
   ;; SET に ATOM が含まれているとき、およびそのときに限り #f でない値を
-  ;; 返す。 O(同じファンクタを持つアトムの数) の時間がかかる。
-  (member atom (atomset-atoms set (atom-functor atom)) atom=?))
+  ;; 返す。
+  (if-let1 hash (hash-table-get (slot-ref set 'atoms) (atom-functor atom) #f)
+    (hash-table-exists? hash atom)
+    #f))
+
+(define (atomset-atoms set :optional [functor #f])
+  ;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合
+  ;; は任意の) アトムを全て取得してリストとして返す。該当するアトムの個
+  ;; 数だけの時間がかかる。
+  (cond [(not functor)
+         (apply append! (map hash-table-keys (hash-table-values (slot-ref set 'atoms))))]
+        [(hash-table-get (slot-ref set 'atoms) functor #f) =>
+         (lambda (hash)
+           (hash-table-keys hash))]
+        [else
+         ()]))
+
+(define (atomset-get-iterator set :optional [functor #f])
+  ;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合
+  ;; は任意の) アトムを順に返すジェネレータを作る。このジェネレータはす
+  ;; べてのアトムを走査し終えると #f を返す。
+  (cond [(not functor)
+         (with-iterator [(slot-ref set 'atoms) atomset-end? atomset-next]
+           (let ([end? (lambda () #t)] [next #f])
+             (rec (loop)
+               (cond [(not (end?)) (car (next))]
+                     [(atomset-end?) #f]
+                     [else (with-iterator ((cdr (atomset-next)) e? n)
+                             (set! end? e?)
+                             (set! next n))
+                           (loop)]))))]
+        [(hash-table-get (slot-ref set 'atoms) functor #f) =>
+         (lambda (hash)
+           (with-iterator (hash end? next)
+             (lambda () (if (end?) #f (car (next))))))]
+        [else
+         (lambda () #f)]))
+
+(define (atomset-find-atom set :optional [functor #f] [fallback #f])
+  ;; SET に含まれる、ファンクタが FUNCTOR であるような適当なアトムを一
+  ;; つ取得する。
+  (or ((atomset-get-iterator set functor)) fallback))
 
 ;; ---- utilities
 
@@ -182,12 +188,10 @@
 (define (atomset-copy set)
   ;; SET の浅いコピーを返す (含まれるアトムまでは複製されない) 。
   (make <atomset>
-    :atoms (let1 hash (slot-ref set 'atoms)
-             (apply hash-table 'string=?
-                    ;; *FIXME* keys と values の並び順が等しいことを仮定している
-                    (map cons
-                         (hash-table-keys hash)
-                         (map list-copy (hash-table-values hash)))))
+    :atoms (rlet1 hash (hash-table-copy (slot-ref set 'atoms))
+             (hash-table-for-each hash
+               (lambda (k v)
+                 (hash-table-put! hash k (hash-table-copy v)))))
     :proxy (atom-copy (slot-ref set 'proxy))))
 
 (define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
