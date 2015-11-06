@@ -90,39 +90,55 @@
 
 (test-section "<atomset> membership")
 
-(test* "atomset-atoms (1)"
-       (list atomc2)
-       (atomset-atoms proc1 (functor "c" 2)) (set-equal? atom=?))
-
-(test* "atomset-atoms (2)"
-       (list atomc1 atomc3)
-       (atomset-atoms proc1 (functor "c" 1)) (set-equal? atom=?))
-
-(test* "atomset-atoms (3)"
-       (list atomd1 atomd2)
-       (atomset-atoms proc2 (functor "d" 2)) (set-equal? atom=?))
-
-(test* "atomset-atoms (4)"
-       (list atoma)
-       (atomset-atoms proc2  (functor "a" 2)) (set-equal? atom=?))
-
-(test* "atomset-atoms (5)"
-       ()
-       (atomset-atoms proc1  (functor "a" 2)) (set-equal? atom=?))
-
-(test* "atomset-atoms (6)"
-       (list atoma atomb atomc1 atomc2 atomc3 atomd1 atomd2)
-       (atomset-atoms proc2) (set-equal? atom=?))
-
-(test* "atomset-atoms (7)"
-       (list atomb atomc1 atomc2 atomc3 atomd1 atomd2)
-       (atomset-atoms proc1) (set-equal? atom=?))
-
 (test* "atomset-member (1)" #f (atomset-member proc1 atoma))
 (test* "atomset-member (2)" proc2 atoma atomset-member)
 (test* "atomset-member (3)" proc1 atomd1 atomset-member)
 (test* "atomset-member (4)" proc2 atomd1 atomset-member)
 (test* "atomset-member (5)" #f (atomset-member proc1 (atom-copy atomd1)))
+
+(test* "atomset-atoms (1)"
+       (list atomc2)
+       (atomset-atoms proc1 (functor "c" 2)) (set-equal? atom=?))
+(test* "atomset-atoms (2)"
+       (list atomc1 atomc3)
+       (atomset-atoms proc1 (functor "c" 1)) (set-equal? atom=?))
+(test* "atomset-atoms (3)"
+       (list atomd1 atomd2)
+       (atomset-atoms proc2 (functor "d" 2)) (set-equal? atom=?))
+(test* "atomset-atoms (4)"
+       (list atoma)
+       (atomset-atoms proc2  (functor "a" 2)) (set-equal? atom=?))
+(test* "atomset-atoms (5)"
+       ()
+       (atomset-atoms proc1  (functor "a" 2)) (set-equal? atom=?))
+(test* "atomset-atoms (6)"
+       (list atoma atomb atomc1 atomc2 atomc3 atomd1 atomd2)
+       (atomset-atoms proc2) (set-equal? atom=?))
+(test* "atomset-atoms (7)"
+       (list atomb atomc1 atomc2 atomc3 atomd1 atomd2)
+       (atomset-atoms proc1) (set-equal? atom=?))
+
+(test* "atomset-get-iterator (1)"
+       (generator->list (atomset-get-iterator proc1 (functor "c" 2)))
+       (atomset-atoms proc1 (functor "c" 2)) (set-equal? atom=?))
+(test* "atomset-get-iterator (2)"
+       (generator->list (atomset-get-iterator proc1 (functor "c" 1)))
+       (atomset-atoms proc1 (functor "c" 1)) (set-equal? atom=?))
+(test* "atomset-get-iterator (3)"
+       (generator->list (atomset-get-iterator proc2 (functor "d" 2)))
+       (atomset-atoms proc2 (functor "d" 2)) (set-equal? atom=?))
+(test* "atomset-get-iterator (4)"
+       (generator->list (atomset-get-iterator proc2  (functor "a" 2)))
+       (atomset-atoms proc2  (functor "a" 2)) (set-equal? atom=?))
+(test* "atomset-get-iterator (5)"
+       (generator->list (atomset-get-iterator proc1  (functor "a" 2)))
+       (atomset-atoms proc1  (functor "a" 2)) (set-equal? atom=?))
+(test* "atomset-get-iterator (6)"
+       (generator->list (atomset-get-iterator proc2))
+       (atomset-atoms proc2) (set-equal? atom=?))
+(test* "atomset-get-iterator (7)"
+       (generator->list (atomset-get-iterator proc1))
+       (atomset-atoms proc1) (set-equal? atom=?))
 
 (test* "atomset-find-atom (1)" atoma (atomset-find-atom proc2 (functor "a" 2)))
 (test* "atomset-find-atom (2)" #f (atomset-find-atom proc1 (functor "a" 0)))
