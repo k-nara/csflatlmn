@@ -1,7 +1,7 @@
-(define-module lmn.test.util
+(define-module lmn.testutil
   (export set-equal? list-equal? generator->list))
 
-(select-module lmn.test.util)
+(select-module lmn.testutil)
 
 (define ((set-equal? comp) s1 s2)
   ;; ２つのリストを集合として、関数 COMP の意味で比較する。

@@ -1,5 +1,5 @@
 (use gauche.test)
-(use lmn.test.util)
+(use lmn.testutil)
 
 (test-start "lmn.atomset")
 
@@ -146,7 +146,7 @@
 (test* "atomset-find-atom (4)" proc1 (atomset-find-atom proc1) atomset-member)
 (test* "atomset-find-atom (5)" #f (atomset-find-atom proc2 (functor "a" 0))) ;; atomset-remove-atom!
 
-;; ---- utilities
+;; ----------------------
 
 (test-section "<atomset> utilities")
 
@@ -163,7 +163,7 @@
        (atomset->sexp (sexp->atomset '(("a" ("b" ("c") 0) 2) ("b") (1 3) (4 5))))
        (set-equal? equal?))
 
-;; ---- connecting direct links
+;; ----------------------
 
 ;;     ..procd...
 ;;     :        :
@@ -185,5 +185,7 @@
 
 (test* "connecting direct links (1)" (atom-arg atoml 0) (atom-port atomr 0) port=?)
 (test* "connecting direct links (2)" (atom-arg atomr 0) (atom-port atoml 0) port=?)
+
+;; ----------------------
 
 (test-end :exit-on-failure #t)

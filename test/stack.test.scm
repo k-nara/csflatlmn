@@ -1,5 +1,5 @@
 (use gauche.test)
-(use lmn.test.util)
+(use lmn.testutil)
 
 (test-start "lmn.stack")
 
@@ -25,5 +25,7 @@
 (stack-pop! stack 2)
 
 (test* "stack-pop!" 1 (stack-length stack))
+
+;; ----------------------
 
 (test-end :exit-on-failure #t)

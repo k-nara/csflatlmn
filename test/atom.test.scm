@@ -1,5 +1,5 @@
 (use gauche.test)
-(use lmn.test.util)
+(use lmn.testutil)
 
 (test-start "lmn.atom")
 

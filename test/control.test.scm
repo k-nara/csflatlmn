@@ -1,11 +1,13 @@
 (use gauche.test)
-(use lmn.test.util)
+(use lmn.testutil)
 
 (test-start "lmn.control")
 
 (test-module 'lmn.control)
 
 ;; ----------------------
+
+(test-section "basic tests")
 
 (define-pp (pp-succ x)
   (next (+ x 1)))
@@ -39,5 +41,7 @@
 
 (test* "pp-or" 9 ((pp-or pp-even? (pp-great? 100) (pp-great? 9) (pp-great? 5)) 11))
 (test* "pp-or:next" 11 ((pp-or pp-even? (pp-great? 10)) :next pp-succ 12))
+
+;; ----------------------
 
 (test-end :exit-on-failure #t)
