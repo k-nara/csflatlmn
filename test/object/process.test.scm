@@ -1,9 +1,9 @@
 (use gauche.test)
 (use lmn.testutil)
 
-(test-start "lmn.process")
+(test-start "lmn.object.process")
 
-(test-module 'lmn.process)
+(test-module 'lmn.object.process)
 
 ;; ----------------------
 

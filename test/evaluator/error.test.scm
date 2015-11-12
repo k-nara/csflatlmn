@@ -1,9 +1,9 @@
 (use gauche.test)
 (use lmn.testutil)
 
-(test-start "lmn.error")
+(test-start "lmn.evaluator.error")
 
-(test-module 'lmn.error)
+(test-module 'lmn.evaluator.error)
 
 ;; ----------------------
 

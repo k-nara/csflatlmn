@@ -1,9 +1,9 @@
 (use gauche.test)
 (use lmn.testutil)
 
-(test-start "lmn.atom")
+(test-start "lmn.object.atom")
 
-(test-module 'lmn.atom)
+(test-module 'lmn.object.atom)
 
 ;; ----------------------
 

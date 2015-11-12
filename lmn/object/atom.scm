@@ -1,10 +1,10 @@
-(define-module lmn.atom
+(define-module lmn.object.atom
   (export <portptr> port-atom port-ix port=?
           <atom> make-atom atom-name atom-arity atom-functor atom-arg
           atom-set-arg! atom-port atom=? port-partner port-set-partner!
           port-connect! port-connected? functor atom-copy atom-partner))
 
-(select-module lmn.atom)
+(select-module lmn.object.atom)
 
 ;; この実装では、アトムの 「引数」を 「引数」と 「ポート」に分けて考え
 ;; る。

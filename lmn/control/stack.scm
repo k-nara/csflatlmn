@@ -1,8 +1,8 @@
-(define-module lmn.stack
+(define-module lmn.control.stack
   (export <stack> *stack-allocation-unit*
           make-stack stack-push! stack-pop! stack-length stack-empty? stack-ref))
 
-(select-module lmn.stack)
+(select-module lmn.control.stack)
 
 ;; スタックを提供する。このライブラリの提供するスタックは 「先頭に要素
 ;; を追加する」 「先頭の要素を廃棄する」の２つの方法でのみ変更すること

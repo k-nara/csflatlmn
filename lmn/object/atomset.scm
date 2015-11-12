@@ -1,7 +1,7 @@
-(define-module lmn.atomset
+(define-module lmn.object.atomset
   (use gauche.collection)
   (use lmn.util)
-  (use lmn.atom)
+  (use lmn.object.atom)
   (export <atomset> make-atomset atomset-arity atomset-set-port! atomset-port
           atomset-arg atomset-set-arg! atomset-add-direct-link!
           atomset-add-atom! atomset-remove-atom! atomset-member
@@ -9,7 +9,7 @@
           atomset-map-atoms atomset-copy atomset-head atomset->sexp
           sexp->atomset atomset-deep-copy))
 
-(select-module lmn.atomset)
+(select-module lmn.object.atomset)
 
 ;; 自由リンク管理機能を備えたアトムの集合 <atomset> を提供する。
 ;; <atomset> はアトムの追加・削除、あるアトムが含まれているかの確認を定

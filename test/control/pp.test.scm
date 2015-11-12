@@ -1,9 +1,9 @@
 (use gauche.test)
 (use lmn.testutil)
 
-(test-start "lmn.control")
+(test-start "lmn.control.pp")
 
-(test-module 'lmn.control)
+(test-module 'lmn.control.pp)
 
 ;; ----------------------
 

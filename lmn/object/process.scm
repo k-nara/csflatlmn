@@ -1,10 +1,10 @@
-(define-module lmn.process
-  (use lmn.atom)
-  (use lmn.atomset)
+(define-module lmn.object.process
+  (use lmn.object.atom)
+  (use lmn.object.atomset)
   (export process-arity process-arg process-set-arg! process-port
           process-map-args process-map-ports process-connect! process-connected?))
 
-(select-module lmn.process)
+(select-module lmn.object.process)
 
 ;; アトム・アトム集合 (あわせてプロセスと呼ぶ) のどちらにも適用すること
 ;; のできる関数群を提供する。
