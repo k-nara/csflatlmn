@@ -17,10 +17,11 @@
 
 (select-module lmn.parser.peg)
 
-;; 再帰下降のパーサーコンビネーターを提供する。
-
 ;; *TODO* テストを書く
+
 ;; *TODO* エラーメッセージに "while parsing ~" ほしいかな？やっぱり
+
+;; 再帰下降のパーサーコンビネーターを提供する。
 
 ;; *FIXME* 下の例でエラーメッセージが闇
 ;;
@@ -125,14 +126,17 @@
 ;; を返す。
 ;;
 ;; (*) は、かつて何もパースに成功していなければ #f で代用できる
+;;     エラーメッセージの 'after HOGEHOGE' の部分に使われる
+;;
 ;; (**) は、たんに期待しない入力があったことだけを報告したい場合 #f で代用できる
+;;      エラーメッセージの 'expected HOGEHOGE' の部分に使われる
 
-;; ---- parser drivers
+;; ---- パーサーを走らせるための関数群
 
 (define-condition-type <parse-error> <error> #f)
 
+;; パース失敗時に得られる dotted list からエラーメッセージを生成する。
 (define (parse-error->string value)
-  ;; パース失敗時に得られる dotted list からエラーメッセージを生成する。
   (let* ([expecteds->string
           (^(expecteds)
             (cond [(not expecteds) #f]
@@ -154,9 +158,9 @@
       #`"expected ,s,after but got ,actual"
       #`"unexpected ,actual,after")))
 
+;; 文字列 STR をパーサー PARSER で解析し、その結果を出力する。デバッグ
+;; 用。
 (define (test-parser parser str)
-  ;; 文字列 STR をパーサー PARSER で解析し、その結果を出力する。デバッ
-  ;; グ用。
   (receive (status value rest) (parser (string->stream str) #f)
     (cond [status
            (print "PARSE SUCCESS:")
@@ -170,38 +174,35 @@
            (print "  actual: " (caddr value))
            (print "  unread: " (stream->string rest))])))
 
+;; ストリーム STREAM をパーサー PARSER で解析する。
 (define (parse-stream parser stream)
-  ;; ストリーム STREAM をパーサー PARSER で解析する。
   (receive (status value _) (parser stream #f)
     (if status
         (car value)
         (error <parse-error> (parse-error->string value)))))
 
-;; Parser<T> [-> Port] -> T
+;; ポート PORT をパーサー PARSER で解析する。 PORT が省略された場合、
+;; 現在の入力ポート (デフォルトでは標準入力) を解析する。
 (define (parse-port parser :optional [port (current-input-port)])
-  ;; ポート PORT をパーサー PARSER で解析する。 PORT が省略された場合、
-  ;; 現在の入力ポート (デフォルトでは標準入力) を解析する。
   (parse-stream parser (port->stream)))
 
-;; Parser<T> -> String -> T
+;; 文字列 STRING をパーサー PARSER で解析する。
 (define (parse-string parser string)
-  ;; 文字列 STRING をパーサー PARSER で解析する。
   (parse-stream parser (string->stream string)))
 
-;; ---- 5 core parsers
+;; ---- ５つの基本的なパーサー
 
-;; T -> Parser<T>
+;; 入力をいっさい消費せずたんに OBJ を返すパーサーを作る。OBJ を説明す
+;; る文字列 NAME を付加することで、エラーメッセージを改善できる場合があ
+;; る。
 (define (($ret obj :optional [name #f]) stream last)
-  ;; 入力をいっさい消費せずたんに OBJ を返すパーサー。OBJ を説明する文
-  ;; 字列 NAME を付加することで、エラーメッセージを改善できる場合がある。
   (values #t (cons obj (or name last)) stream))
 
 ;; (test-parser ($ret "hoge") "fuga")
 ;; (test-parser ($ret "hoge" "HOGE") "fuga")
 
-;; Parser<()>
+;; 入力の末尾でのみ成功するパーサー。
 (define ($eof stream last)
-  ;; 入力の末尾でのみ成功するパーサー。
   (if (stream-pair? stream)
       (values #f (list "EOF" last #`"',(stream-car stream)'") stream)
       (values #t (cons (eof-object) "EOF") stream)))
@@ -209,9 +210,8 @@
 ;; (test-parser $eof "")
 ;; (test-parser $eof "hoge")
 
-;; Char -> Parser<Char>
+;; 文字 CH と等しい１文字を消費し、その文字を返すパーサーを作る。
 (define (($c ch) stream last)
-  ;; 文字 CH と等しい１文字を消費し、その文字を返すパーサー。
   (cond [(stream-null? stream)
          (values #f (list #`"',ch'" last "EOF") stream)]
         [(char=? (stream-car stream) ch)
@@ -223,10 +223,9 @@
 ;; (test-parser ($c #\a) "bcd")
 ;; (test-parser ($c #\a) "")
 
-;; CharSet -> Parser<Char>
+;; 文字集合 SET に属する任意の１文字を消費し、その文字を返すパーサーを
+;; 作る。SET が省略された場合、全ての文字の集合になる。
 (define (($any :optional [set #[^]]) stream last)
-  ;; 文字集合 SET に属する任意の１文字を消費し、その文字を返すパーサー。
-  ;; SET は省略された場合、全ての文字の集合になる。
   (cond [(stream-null? stream)
          (values #f (list #`"any ,set" last "EOF") stream)]
         [(stream-car stream) (pa$ char-set-contains? set) =>
@@ -239,9 +238,8 @@
 ;; (test-parser ($any #[a-z]) "")
 ;; (test-parser ($any) "abc")
 
-;; String -> Parser<String>
+;; 文字列 STR と等しい文字列を消費し、その文字列を返すパーサーを作る。
 (define (($s str) stream last)
-  ;; 文字列 STR と等しい文字列を消費し、その文字列を返すパーサー。
   (let loop ([s stream] [expected (string->list str)] [actual ()])
     (cond [(null? expected)
            (values #t (cons str #`"',str'") s)]
@@ -259,13 +257,12 @@
 ;; (test-parser ($s "abc") "abxdefg")
 ;; (test-parser ($s "abc") "ab")
 
-;; ---- 6 core combinators
+;; ---- ６つの基本的なコンビネータ
 
-;; (A -> B -> ... Y -> Z) -> Parser<A> -> Parser<B> -> ... -> Parser<Y> -> Parser<Z>
+;; パーサーの列 PARSERS に含まれるパーサーを順に用い、すべてが成功した
+;; 場合に限り、得られたオブジェクトのリストを関数 FN に apply して返す
+;; パーサーを作る。
 (define (($<< fn :rest parsers) stream last)
-  ;; パーサーの列 PARSERS に含まれるパーサーを順に用い、すべてが成功し
-  ;; た場合に限り、得られたオブジェクトの列を関数 FN に適用して返すパー
-  ;; サー。
   (let loop ([parsers parsers] [stream stream] [last last] [results ()])
     (if (null? parsers)
         (values #t (cons (apply fn (reverse! results)) last) stream)
@@ -277,12 +274,13 @@
 ;; (test-parser ($<< list ($s "hoge") ($s "fuga")) "hogefuga")
 ;; (test-parser ($<< list ($s "hoge") ($s "fuga")) "hogehoge")
 
-;; Parser<T> -> Parser<T> -> ... -> Parser<T> -> Parser<T>
+;; １つ以上のパーサーから、それらを上から順に試し初めて成功したパーサー
+;; の結果を返すパーサーを作る。得られるパーサーは、まず先頭パーサー
+;; PARSER を試し、成功したらたんにその値を返す。いくつかの文字を消費し
+;; たうえで失敗した場合、全体として失敗する。文字をいっさい消費せずに失
+;; 敗した場合、残りのパーサー PARSERS を再帰的に試す。それ以上試すパー
+;; ザーがない場合は全体として失敗する。
 (define (($or parser :rest parsers) stream last)
-  ;; パーサー PARSER を用い、成功したらたんにその値を返す。いくつかの文
-  ;; 字を消費したうえで失敗した場合、全体として失敗する。さもなければ、
-  ;; 残りのパーサー PARSERS を再帰的に試し、全てのパーサーが失敗すれば
-  ;; 失敗するパーサー。
   (let loop ([parsers (cons parser parsers)] [expecteds ()] [actuals ()])
     (if (null? parsers)
         ;; *FIXME* actual の選び方をちゃんと考える
@@ -306,10 +304,9 @@
 ;; (test-parser ($<< list ($s ":") ($or ($s "hoge") ($s "fuga"))) ":fugafuga")
 ;; (test-parser ($<< list ($s ":") ($or ($s "hoge") ($s "fuga"))) ":piyopiyo")
 
-;; Parser<T> -> Parser<T>
+;; パーサー PARSER が成功するような入力が与えられたとき、文字を消費せず
+;; に成功するパーサーを作る。
 (define (($look parser) stream last)
-  ;; パーサー PARSER が成功するような入力が与えられたとき、文字を消費せ
-  ;; ずに成功するパーサー。
   (receive (status value rest) (parser stream last)
     (if status
         (values #t (cons (car value) last) stream)
@@ -318,10 +315,10 @@
 ;; (test-parser ($<< list ($s "hoge") ($look ($<< list ($s "a") ($s "b")))) "hogeab")
 ;; (test-parser ($<< list ($s "hoge") ($look ($<< list ($s "a") ($s "b")))) "hogeax")
 
+;; パーサー PARSER が失敗するような入力が与えられたとき、文字を消費せず
+;; に成功するパーサーを作る。本来期待される入力の説明 NAME を与えること
+;; でエラーメッセージを改善できる場合がある。
 (define (($unexpect parser :optional [name #f]) stream last)
-  ;; パーサー PARSER が失敗するような入力が与えられたとき、文字を消費せ
-  ;; ずに成功するパーサー。本来期待される入力の説明 NAME を与えることで
-  ;; エラーメッセージを改善できる場合がある。
   (receive (status value rest) (parser stream last)
     (if status
         (values #f (list #f last (or name (cdr value))) rest)
@@ -330,9 +327,9 @@
 ;; (test-parser ($<< list ($s ":") ($unexpect ($<< list ($s "a") ($s "b")) "ab")) ":ax")
 ;; (test-parser ($<< list ($s ":") ($unexpect ($<< list ($s "a") ($s "b")) "ab")) ":ab")
 
+;; パーサー PARSER と同じものをパースするが、パースの成功がエラーメッセー
+;; ジに影響しないパーサーを作る。
 (define (($skip parser) stream last)
-  ;; パーサー PARSER と同じものをパースするが、パースの成功がエラーメッ
-  ;; セージに影響しないパーサー。
   (receive (status value rest) (parser stream last)
     (if status
         (values #t (cons (car value) last) rest)
@@ -341,13 +338,12 @@
 ;; (test-parser ($<< list ($skip ($s "hoge")) ($s "fuga")) "hogefuga")
 ;; (test-parser ($<< list ($skip ($s "hoge")) ($s "fuga")) "hogehoge")
 
-;; String -> Parser<T> -> Parser<T>
+;; パーサー PARSER を、次のどちらかあるいは両方の意味でグループ化したパー
+;; サーを作る：１．PARSER 全体に名前 NAME を与える。名前はエラーメッセー
+;; ジを表示するために用いられる場合がある。２．PARSER が途中で失敗した
+;; とき、文字を１つも消費しなかったかのように振る舞う。これは "$or" の
+;; バックトラックの挙動に影響する。
 (define (($g parser :optional [name #f] [atomic #f]) stream last)
-  ;; パーサー PARSER を、次のどちらかあるいは両方の意味でグループ化する：
-  ;; １．PARSER 全体に名前 NAME を与える。名前はエラーメッセージを表示
-  ;; するために用いられる場合がある。２．PARSER が途中で失敗したとき、
-  ;; 文字を１つも消費しなかったかのように振る舞う。これは "$or" のバッ
-  ;; クトラックの挙動に影響する。
   (receive (status value rest) (parser stream last)
     (cond [status
            (values #t value rest)]
@@ -377,30 +373,27 @@
 ;; (test-parser ($or ($g ($<< list ($c #\1) ($c #\a)) "1a" #t) ($c #\1)) "1")
 ;; (test-parser ($or ($g ($<< list ($c #\1) ($c #\a)) "1a" #t) ($c #\1)) "2")
 
-;; ---- utility macros
+;; ---- マクロ
 
+;; パーサー PARSER と等価なサンクを返す。
 (define-macro ($delay parser)
-  ;; パーサー PARSER と等価なサンクを返す。
   `(^(s l) (,parser s l)))
 
+;; コンビネーター "$<<" の糖衣構文。
 (define-macro ($let vars :rest body)
-  ;; コンビネーター "$<<" の糖衣構文。
-  ;;
   ;; 例: ($let ([x foo] [y bar]) (cons x y))
   ;;     = ($<< (^(x y) (cons x y)) foo bar)
   `($<< (^,(map car vars) ,@body) ,@(map cadr vars)))
 
+;; 変数が１つしかない "$let" の糖衣構文。
 (define-macro ($let1 var parser :rest body)
-  ;; 変数が１つしかない "$let" の糖衣構文。
-  ;;
   ;; 例: ($let1 x foo (list->string x))
   ;;     = ($<< (^x (list->string x)) foo)
   `($<< (^(,var) ,@body) ,parser))
 
+;; パーサーの "do記法"。パーサーの挙動を動的に変更する必要がない場合、
+;; "$do" や "$let" の方が効率が良い。
 (define-macro ($do* :rest body)
-  ;; パーサーの "do記法"。パーサーの挙動を動的に変更する必要がない場合、
-  ;; "$do" や "$let" の方が効率が良い。
-  ;;
   ;; 例: ($do x <- ($any #[a-z])
   ;;          y <- ($c (char-upcase x))
   ;;          ($ret (string x y)))
@@ -417,11 +410,10 @@
           [else
            (loop (cdr body) vars (cons `($delay ,(car body)) parsers))])))
 
+;; "$do*" に似ているが、束縛された変数は最後のパーザーからしか見えず、
+;; かつ最後のパーザーは１引数の "$ret" でなければならない。 "$<<" に展
+;; 開されるので "$do*" よりも高速。
 (define-macro ($do :rest body)
-  ;; "$do*" に似ているが、束縛された変数は最後のパーザーからしか見えず、
-  ;; かつ最後のパーザーは１引数の "$ret" でなければならない。 "$<<" に
-  ;; 展開されるので "$do*" よりも高速。
-  ;;
   ;; 例: ($do x <- foo
   ;;          y <- bar
   ;;          ($ret (cons x y)))
@@ -438,7 +430,7 @@
           [else
            (loop (cdr body) (cons '_ vars) (cons (car body) parsers))])))
 
-;; ---- library parsers/combinators
+;; ---- その他のパーサーやコンビネータ
 
 ;; parsers
 (define ($none-of charset) ($any (char-set-complement charset)))

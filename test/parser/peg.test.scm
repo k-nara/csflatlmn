@@ -1,5 +1,5 @@
 (use gauche.test)
-(use lmn.testutil)
+(use test.util)
 
 (test-start "lmn.parser.peg")
 

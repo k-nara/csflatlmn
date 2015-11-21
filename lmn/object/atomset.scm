@@ -11,6 +11,8 @@
 
 (select-module lmn.object.atomset)
 
+;; *TODO* atomset-add-direct-link! の実装がエレガントでない
+
 ;; 自由リンク管理機能を備えたアトムの集合 <atomset> を提供する。
 ;; <atomset> はアトムの追加・削除、あるアトムが含まれているかの確認を定
 ;; 数時間で行うことができ、また <atomset> から所定のファンクタを持つア
@@ -37,38 +39,37 @@
   ((atoms :init-keyword :atoms)   ;; Map[Functor, Map[<atom>, _]]
    (proxy :init-keyword :proxy))) ;; Atom
 
+;; ARITY 価の空の <atomset> を生成する。すべてのポートは未定義値で初期
+;; 化されており、適切にポートが設定されるまでこのプロセスはill-formed
+;; である。
 (define (make-atomset :optional [arity 0])
-  ;; ARITY 価の空の <atomset> を生成する。すべてのポートは未定義値で初
-  ;; 期化されており、適切にポートが設定されるまでこのプロセスは
-  ;; ill-formed である。
   (make <atomset> :atoms (make-hash-table 'string=?) :proxy (make-atom #f arity)))
 
 ;; ---- ports and args
 
+;; SET の価数を取得する。
 (define (atomset-arity set)
-  ;; SET の価数を取得する。
   (atom-arity (slot-ref set 'proxy)))
 
+;; PTR を SET の第 N ポートに設定する。
 (define (atomset-set-port! set n ptr)
-  ;; PTR を SET の第 N ポートに設定する。
   (atom-set-arg! (slot-ref set 'proxy) n ptr))
 
+;; SET の第 N ポートに設定されている <portptr> を取得する。
 (define (atomset-port set n)
-  ;; SET の第 N ポートに設定されている <portptr> を取得する。
   (atom-arg (slot-ref set 'proxy) n))
 
+;; (port-partner (atomset-port set n)) を取得する。
 (define (atomset-arg set n)
-  ;; (port-partner (atomset-port set n)) を取得する。
   (port-partner (atomset-port set n)))
 
+;; (partner (atomset-port set n)) を PTR にセットする。
 (define (atomset-set-arg! set n ptr)
-  ;; (partner (atomset-port set n)) を PTR にセットする。
   (port-set-partner! (atomset-port set n) ptr))
 
-;; *FIXME* 実装が強引, 一度しか正しく動かない
+;; SET をその第 n ポートと第 m ポートが直接繋がっているかのように振舞わ
+;; せる。
 (define (atomset-add-direct-link! set n m)
-  ;; SET をその第 n ポートと第 m ポートが直接繋がっているかのように振舞
-  ;; わせる。
   (let1 proxy (slot-ref set 'proxy)
     (port-connect! (atom-port proxy n) (atom-port proxy m))))
 
@@ -112,13 +113,14 @@
 ;;     | 1     |         | 1<--+ |               | 1---+ |    |
 ;;     +---x---+         +---x---+               +---x---+    |
 ;;          B                 B                       B bar<--+
-;; ※ 正しく動くのは１度だけで、atomset は使い捨てになることに注意
+;;
+;; ※ 正しく動くのは１度だけで、 direct-link は使い捨てになることに注意
 
 ;; ---- membership
 
+;; SET にアトム ATOM を追加する。SET に ATOM がすでに含まれている場合は
+;; 何もしない。追加するアトムの個数に比例する時間がかかる。
 (define (atomset-add-atom! set :rest atoms)
-  ;; SET にアトム ATOM を追加する。SET に ATOM がすでに含まれている場合
-  ;; は何もしない。追加するアトムの個数に比例する時間がかかる。
   (let1 outer-hash (slot-ref set 'atoms)
     (dolist [atom atoms]
       (let1 functor (atom-functor atom)
@@ -129,22 +131,22 @@
                  (hash-table-put! hash atom #t)
                  (hash-table-put! outer-hash functor hash))])))))
 
+;; SET からアトム ATOM を取り除く。
 (define (atomset-remove-atom! set atom)
-  ;; SET からアトム ATOM を取り除く。
   (if-let1 hash (hash-table-get (slot-ref set 'atoms) (atom-functor atom) #f)
     (hash-table-delete! hash atom)))
 
+;; SET に ATOM が含まれているとき、およびそのときに限り #f でない値を返
+;; す。
 (define (atomset-member set atom)
-  ;; SET に ATOM が含まれているとき、およびそのときに限り #f でない値を
-  ;; 返す。
   (if-let1 hash (hash-table-get (slot-ref set 'atoms) (atom-functor atom) #f)
     (hash-table-exists? hash atom)
     #f))
 
+;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合は
+;; 任意の) アトムを全て取得してリストとして返す。該当するアトムの個数だ
+;; けの時間がかかる。
 (define (atomset-atoms set :optional [functor #f])
-  ;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合
-  ;; は任意の) アトムを全て取得してリストとして返す。該当するアトムの個
-  ;; 数だけの時間がかかる。
   (cond [(not functor)
          (apply append! (map hash-table-keys (hash-table-values (slot-ref set 'atoms))))]
         [(hash-table-get (slot-ref set 'atoms) functor #f) =>
@@ -153,10 +155,10 @@
         [else
          ()]))
 
+;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合は
+;; 任意の) アトムを順に返すジェネレータを作る。このジェネレータはすべて
+;; のアトムを走査し終えると #f を返す。
 (define (atomset-get-iterator set :optional [functor #f])
-  ;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合
-  ;; は任意の) アトムを順に返すジェネレータを作る。このジェネレータはす
-  ;; べてのアトムを走査し終えると #f を返す。
   (cond [(not functor)
          (with-iterator [(slot-ref set 'atoms) atomset-end? atomset-next]
            (let ([end? (lambda () #t)] [next #f])
@@ -174,19 +176,19 @@
         [else
          (lambda () #f)]))
 
+;; SET に含まれる、ファンクタが FUNCTOR であるような適当なアトムを一つ
+;; 取得する。
 (define (atomset-find-atom set :optional [functor #f] [fallback #f])
-  ;; SET に含まれる、ファンクタが FUNCTOR であるような適当なアトムを一
-  ;; つ取得する。
   (or ((atomset-get-iterator set functor)) fallback))
 
 ;; ---- utilities
 
+;; SET に含まれるそれぞれのアトムについて関数 FN を呼ぶ。
 (define (atomset-map-atoms fn set)
-  ;; SET に含まれるそれぞれのアトムについて関数 FN を呼ぶ。
   (map fn (atomset-atoms set)))
 
+;; SET の浅いコピーを返す (含まれるアトムまでは複製されない) 。
 (define (atomset-copy set)
-  ;; SET の浅いコピーを返す (含まれるアトムまでは複製されない) 。
   (make <atomset>
     :atoms (rlet1 hash (hash-table-copy (slot-ref set 'atoms))
              (hash-table-for-each hash
@@ -194,15 +196,14 @@
                  (hash-table-put! hash k (hash-table-copy v)))))
     :proxy (atom-copy (slot-ref set 'proxy))))
 
+;; SET に含まれるアトム ATOM から最終引数を順々に辿っていき、１．最終引
+;; 数が SET の外部のアトムにつながっているアトムに到達した場合、あるい
+;; はそもそも０価のアトムの場合、そのアトムを返す。２．閉路が見つかった
+;; 場合、その閉路に含まれる任意のアトムを返す。 ATOM が省略された場合、
+;; SET に含まれる任意のアトムを始点にする。 SET にアトムが存在しない場
+;; 合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経路中に
+;; ill-formed なアトムが存在する場合、この関数は失敗することがある。
 (define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
-  ;; SET に含まれるアトム ATOM から最終引数を順々に辿っていき、１．最終
-  ;; 引数が SET の外部のアトムにつながっているアトムに到達した場合、あ
-  ;; るいはそもそも０価のアトムの場合、そのアトムを返す。２．閉路が見つ
-  ;; かった場合、その閉路に含まれる任意のアトムを返す。 ATOM が省略され
-  ;; た場合、 SET に含まれる任意のアトムを始点にする。 SET にアトムが存
-  ;; 在しない場合や ATOM が SET に含まれない場合は FALLBACK を返す。探
-  ;; 索の経路中に ill-formed なアトムが存在する場合、この関数は失敗する
-  ;; ことがある。
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
       (let loop ([atom atom] [known-atoms (make-atomset)])
@@ -220,10 +221,9 @@
                            (atomset-add-atom! known-atoms atom)
                            (loop parent known-atoms)]))))))))
 
+;; (内部関数) PORT が SET の何番目のポートとしてセットされているかを返
+;; す。 PORT が SET のポートとしてセットされていない場合は #f を返す。
 (define (-atomset-port-index set port)
-  ;; (内部関数) PORT が SET の何番目のポートとしてセットされているかを
-  ;; 返す。 PORT が SET のポートとしてセットされていない場合は #f を返
-  ;; す。
   (let loop ([n 0] [lim (atomset-arity set)])
     (cond [(= n lim)
            #f]
@@ -233,8 +233,8 @@
           [else
            (loop (+ n 1) lim)])))
 
+;; (内部関数) SET の持つ direct link のリストを返す。
 (define (-atomset-list-direct-links set)
-  ;; (内部関数) SET の持つ direct link のリストを返す。
   (let1 proxy (slot-ref set 'proxy)
     (let loop ([lst (iota (atom-arity proxy) 0)])
       (if (null? lst)
@@ -247,13 +247,13 @@
                   (cons (list n m) (loop (delete1! m (cdr lst)))))
                 (loop (cdr lst))))))))
 
+;; well-formed なアトム集合 SET の S 式表現を生成する。アトムは文字列か
+;; ら始まるリストで、極力 「最終引数の略記」を用いた形で表現される。自
+;; 由リンクは整数によってそのポート番号が表現される。局所リンクは自然数
+;; でないユニークなシンボルで表現される。direct link は２つのポート番号
+;; を並べたリストとして表現される。この関数は SET がill-formed であれば
+;; 失敗することがある。
 (define (atomset->sexp set)
-  ;; well-formed なアトム集合 SET の S 式表現を生成する。アトムは文字列
-  ;; から始まるリストで、極力 「最終引数の略記」を用いた形で表現される。
-  ;; 自由リンクは整数によってそのポート番号が表現される。局所リンクは自
-  ;; 然数でないユニークなシンボルで表現される。direct link は２つのポー
-  ;; ト番号を並べたリストとして表現される。この関数は SET が
-  ;; ill-formed であれば失敗することがある。
   (let loop ([res ()]
              [pending-ports (make-hash-table 'equal?)]
              [remaining-atoms (atomset-copy set)])
@@ -287,9 +287,9 @@
     ;; add direct links
     (append! res (-atomset-list-direct-links set))))
 
+;; atomset->sexp が生成するものと同じ形式のＳ式から <atomset> を構成す
+;; る。
 (define (sexp->atomset sexp)
-  ;; atomset->sexp が生成するものと同じ形式のＳ式から <atomset> を構成
-  ;; する。
   (let ([proc (make-atomset
                (+ 1 ((rec (max* list)
                        (cond [(integer? list) list]
@@ -322,8 +322,8 @@
               #f tree)]))
     proc))
 
+;; SET の深いコピーを返す。 SET 内のアトムもすべて複製される。 SET が０
+;; 価でない場合、得られる <atomset> は引数を適切にセットするまで
+;; ill-formed であることに注意する。
 (define (atomset-deep-copy set)
-  ;; SET の深いコピーを返す。 SET 内のアトムもすべて複製される。 SET が
-  ;; ０価でない場合、得られる <atomset> は引数を適切にセットするまで
-  ;; ill-formed であることに注意する。
   (sexp->atomset (atomset->sexp set)))

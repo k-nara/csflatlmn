@@ -10,27 +10,27 @@
 ;; ArrayList のように適宜拡大される配列で、アロケーションユニットごとに
 ;; 全体がコピーされるので注意する。
 
+(define *stack-allocation-unit* 30)
+
+;; スタックのオブジェクト。
 (define-class <stack> ()
-  ;; スタックのオブジェクト。
   ((data :init-keyword :data)       ;; Vector
    (length :init-keyword :length))) ;; Int
 
-(define *stack-allocation-unit* 30)
-
+;; スタックを作成する。
 (define (make-stack)
-  ;; スタックを作成する。
   (make <stack> :data (make-vector *stack-allocation-unit*) :length 0))
 
+;; STACK に含まれる要素の数を返す。
 (define (stack-length stack)
-  ;; STACK に含まれる要素の数を返す。
   (slot-ref stack 'length))
 
+;; STACK が空の場合に限り #f でない値を返す。
 (define (stack-empty? stack)
-  ;; STACK が空の場合に限り #f でない値を返す。
   (= (stack-length stack) 0))
 
+;; STACK にオブジェクト OBJ を push する。
 (define (stack-push! stack obj)
-  ;; STACK にオブジェクト OBJ を push する。
   (let ([length (stack-length stack)]
         [data (slot-ref stack 'data)])
     ;; 配列が小さければ拡大する
@@ -42,18 +42,18 @@
     (vector-set! data length obj)
     (slot-set! stack 'length (+ 1 length))))
 
+;; STACK からオブジェクトを N つ捨てる (N にかかわらず定数時間) 。push
+;; した数以上のオブジェクトを捨てるとエラーになる。
 (define (stack-pop! stack :optional [n 1])
-  ;; STACK からオブジェクトを N つ捨てる (N にかかわらず定数時間) 。
-  ;; push した数以上のオブジェクトを捨てるとエラーになる。
   (let ([length (stack-length stack)]
         [data (slot-ref stack 'data)])
     (when (< length n)
       (error "Cannot operate pop for an empty stack."))
     (slot-set! stack 'length (- length n))))
 
+;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。そのよ
+;; うなオブジェクトがない場合にはエラーになる。
 (define (stack-ref stack n)
-  ;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。その
-  ;; ようなオブジェクトがない場合にはエラーになる。
   (unless (and (>= n 0)
                (< n (stack-length stack)))
     (error "Stack boundary error."))
