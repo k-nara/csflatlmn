@@ -129,7 +129,7 @@
               (and proc-head-index
                    (port-atom (stack-ref lstack (vector-ref indices proc-head-index))))
             (lambda () (begin0 given-atom (set! given-atom #f)))
-            (atomset-get-iterator proc (atom-functor (atomset-find-atom tree))))
+            (atomset-get-iterator proc (atom-functor tree-head)))
         (let/cc succeed
           (while (atom-iter) => proc-head
             (let ([atom-mapping (make-hash-table 'equal?)] ;; TreeAtom -> ProcAtom
