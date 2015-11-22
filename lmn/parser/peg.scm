@@ -17,11 +17,10 @@
 
 (select-module lmn.parser.peg)
 
-;; *TODO* テストを書く
-
-;; *TODO* エラーメッセージに "while parsing ~" ほしいかな？やっぱり
-
 ;; 再帰下降のパーサーコンビネーターを提供する。
+
+;; *TODO* テストを書く
+;; *TODO* エラーメッセージに "while parsing ~" ほしいかな？やっぱり
 
 ;; *FIXME* 下の例でエラーメッセージが闇
 ;;
@@ -131,7 +130,7 @@
 ;; (**) は、たんに期待しない入力があったことだけを報告したい場合 #f で代用できる
 ;;      エラーメッセージの 'expected HOGEHOGE' の部分に使われる
 
-;; ---- パーサーを走らせるための関数群
+;; ---- parser drivers
 
 (define-condition-type <parse-error> <error> #f)
 
@@ -190,7 +189,7 @@
 (define (parse-string parser string)
   (parse-stream parser (string->stream string)))
 
-;; ---- ５つの基本的なパーサー
+;; ---- 5 primitive parsers
 
 ;; 入力をいっさい消費せずたんに OBJ を返すパーサーを作る。OBJ を説明す
 ;; る文字列 NAME を付加することで、エラーメッセージを改善できる場合があ
@@ -257,7 +256,7 @@
 ;; (test-parser ($s "abc") "abxdefg")
 ;; (test-parser ($s "abc") "ab")
 
-;; ---- ６つの基本的なコンビネータ
+;; ---- 6 primitive combinators
 
 ;; パーサーの列 PARSERS に含まれるパーサーを順に用い、すべてが成功した
 ;; 場合に限り、得られたオブジェクトのリストを関数 FN に apply して返す
@@ -368,14 +367,15 @@
 ;; (test-parser ($g ($<< list ($s ":") ($g ($<< list ($s "a") ($s "b")) "ab" #t)) ":") ":x")
 ;; (test-parser ($g ($<< list ($s ":") ($g ($<< list ($s "a") ($s "b")) "ab" #t)) ":") "x")
 
-;; controling backtrack
+;; backtrack control
 ;; (test-parser ($or ($g ($<< list ($c #\1) ($c #\a)) "1a"   ) ($c #\1)) "1")
 ;; (test-parser ($or ($g ($<< list ($c #\1) ($c #\a)) "1a" #t) ($c #\1)) "1")
 ;; (test-parser ($or ($g ($<< list ($c #\1) ($c #\a)) "1a" #t) ($c #\1)) "2")
 
-;; ---- マクロ
+;; ---- utility macros
 
-;; パーサー PARSER と等価なサンクを返す。
+;; パーサー PARSER と等価なサンクを返す。Scheme は正格評価なので、適切
+;; に delay しないと無限再帰してしまう。
 (define-macro ($delay parser)
   `(^(s l) (,parser s l)))
 
@@ -430,7 +430,7 @@
           [else
            (loop (cdr body) (cons '_ vars) (cons (car body) parsers))])))
 
-;; ---- その他のパーサーやコンビネータ
+;; ---- other library parsers / combinators
 
 ;; parsers
 (define ($none-of charset) ($any (char-set-complement charset)))
