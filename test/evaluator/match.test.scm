@@ -8,6 +8,7 @@
 ;; ----------------------
 
 (test* "remove-processes!%"
+       '("b" "d")
        (let ([proc (sexp->atomset '(("a") ("b") ("c") ("d")))]
              [proc-a (make-atomset 0)]
              [proc-b (make-atomset 0)]
@@ -21,8 +22,7 @@
          (stack-push! pstack proc-c)
          ((remove-processes!% '(0 2))
           :next (^(p _ _) (atomset-map-atoms atom-name p)) proc #f pstack))
-       '("b" "d")
-       (set-equal? string=?))
+       (set-equal?))
 
 ;; ----------------------
 
