@@ -1,6 +1,6 @@
 (define-module lmn.control.stack
   (export <stack> *stack-allocation-unit*
-          make-stack stack-push! stack-pop! stack-length stack-empty? stack-ref))
+          make-stack stack-push! stack-pop! stack-pop-until! stack-length stack-empty? stack-ref))
 
 (select-module lmn.control.stack)
 
@@ -42,11 +42,15 @@
     (vector-set! data length obj)
     (slot-set! stack 'length (+ 1 length))))
 
+;; STACK のオブジェクト数が N になるまで先頭から要素を捨てる (N にかか
+;; わらず定数時間)。
+(define (stack-pop-until! stack n)
+  (slot-set! stack 'length n))
+
 ;; STACK からオブジェクトを N つ捨てる (N にかかわらず定数時間) 。push
 ;; した数以上のオブジェクトを捨てるとエラーになる。
 (define (stack-pop! stack :optional [n 1])
-  (let ([length (stack-length stack)]
-        [data (slot-ref stack 'data)])
+  (let1 length (stack-length stack)
     (when (< length n)
       (error "Cannot operate pop for an empty stack."))
     (slot-set! stack 'length (- length n))))
