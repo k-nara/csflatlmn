@@ -11,8 +11,6 @@
 
 (select-module lmn.object.atomset)
 
-;; *TODO* atomset-add-direct-link! の実装がエレガントでない
-
 ;; 自由リンク管理機能を備えたアトムの集合 <atomset> を提供する。
 ;; <atomset> はアトムの追加・削除、あるアトムが含まれているかの確認を定
 ;; 数時間で行うことができ、また <atomset> から所定のファンクタを持つア
@@ -32,6 +30,8 @@
 ;; て不適切であるため、このようなは ill-formed であると言うことにする。
 ;; また <atomset> が含むアトムに ill-formed なものが含まれる場合もこれ
 ;; を ill-formed であると言うことにする。
+
+;; *TODO* atomset-add-direct-link! の実装がエレガントでない
 
 ;; ---- <atomset>
 
