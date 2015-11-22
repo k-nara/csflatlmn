@@ -21,10 +21,13 @@
 (test* "stack-ref (1)" 'c (stack-ref stack 2))
 (test* "stack-ref (2)" (test-error <error>) (stack-ref stack 4))
 
-(stack-pop! stack)
+(stack-pop-until! stack 2)
+
+(test* "stack-pop-until!" 2 (stack-length stack))
+
 (stack-pop! stack 2)
 
-(test* "stack-pop!" 1 (stack-length stack))
+(test* "stack-pop!" 0 (stack-length stack))
 
 ;; ----------------------
 
