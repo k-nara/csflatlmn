@@ -1,5 +1,3 @@
-;; -*- eval: (put 'lambda% 'scheme-indent-function 1) -*-
-
 (define-module lmn.control.pp
   (export lambda% define% seq% or%))
 
@@ -78,3 +76,7 @@
     (cond [(null? fns) #f]
           [(apply (car fns) :next next args) => -identity%]
           [else (loop (cdr fns))])))
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; End:

@@ -1,6 +1,3 @@
-;; -*- eval: (put 'lambda% 'scheme-indent-function 1) -*-
-;; -*- eval: (put 'while 'scheme-indent-function 'defun) -*-
-
 (define-module lmn.evaluator.match
   (use lmn.object.atom)
   (use lmn.object.atomset)
@@ -291,3 +288,10 @@
 ;;       (when (pair? ports) (loop (+ ix 1) (cdr ports))))
 ;;     (while (pair? ports)
 ;;       ())))
+
+;; ----------------------
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; eval: (put 'while 'scheme-indent-function 'defun)
+;; End:

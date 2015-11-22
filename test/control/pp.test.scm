@@ -1,5 +1,3 @@
-;; -*- eval: (put 'lambda% 'scheme-indent-function 1) -*-
-
 (use gauche.test)
 (use test.util)
 
@@ -47,3 +45,7 @@
 ;; ----------------------
 
 (test-end :exit-on-failure #t)
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; End:
