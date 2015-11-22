@@ -5,10 +5,10 @@
 
 (select-module lmn.control.pp)
 
-;; *TODO* -cons% の実装があまりエレガントでない
-
 ;; 戻り先を指定して呼び出せる関数 (部分手続きと呼ぶ) を用いて、動的にバッ
 ;; クトラックの手続きを生成するためのユーティリティ群を提供する。
+
+;; *TODO* -cons% の実装があまりエレガントでない
 
 ;; [例]
 ;; 与えられたリストから、掛けて１６になる異なる２数のペアを選ぶ
@@ -30,6 +30,10 @@
 ;;
 ;; (search '(4 7 2 3 6 1 5 8 9))
 
+;; (内部関数) 引数の個数を一般化した identity
+(define (-identity% :rest x)
+  (car x))
+
 ;; 部分手続きを作る。構文は lambda と同じだが、得られた部分手続き PPは
 ;; (PP :next NEXT_PROCEDURE ARGS ...) のように :next を伴って呼び出すこ
 ;; とで、戻り先の関数 NEXT_PROCEDURE を明示することができる。BODY 部で
@@ -46,7 +50,7 @@
        (let1 ,fn-sym (lambda (next ,@formals) ,@body)
          (if (and (pair? ,rest-sym) (eq? (car ,rest-sym) :next))
              (apply ,fn-sym (cdr ,rest-sym))
-             (apply ,fn-sym ,identity ,rest-sym))))))
+             (apply ,fn-sym ,-identity% ,rest-sym))))))
 
 ;; 関数を定義する define に似ているが lambda の代わりに lambda% を用い
 ;; て部分手続きを定義する。
@@ -57,7 +61,7 @@
 ;; (内部関数) ２つの部分手続きを :next で連結して、これらを順に実行する
 ;; 新しい部分手続きをつくる。
 (define% ((-cons% f1 f2) :rest args)
-  (if (eq? identity next)
+  (if (eq? -identity% next)
       (apply f1 :next f2 args)
       (apply f1 :next (-cons% f2 next) args)))
 
@@ -72,5 +76,5 @@
 (define% ((or% :rest fns) :rest args)
   (let loop ([fns fns])
     (cond [(null? fns) #f]
-          [(apply (car fns) :next next args) => identity]
+          [(apply (car fns) :next next args) => -identity%]
           [else (loop (cdr fns))])))
