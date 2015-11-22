@@ -9,8 +9,9 @@
 
 ;; パターンマッチングのしくみを提供する。
 
+;; *NOTE* direct-link を取ってくることはできない (おそらく問題ない)
 ;; *TODO* プロセスやアトムの再利用を実装すべき
-;; *TODO* -rassoc-port-ix がアドホック。データ構造の工夫で O(1) にしたい
+;; *TODO* -rassoc-port-ix がアドホック。データ構造の工夫で O(1) にならないか？
 ;; *TODO* バックトラック時、 PROC をもとに戻すのに O(n) かけるのは微妙か？
 
 ;; [例1a.LMNtal 構文で書かれたルール]
@@ -57,21 +58,21 @@
 
 ;; [例1c.プロシージャを生成]
 ;;
-;; (seq% (match-tree% (sexp->atomset '(("a" 0 1 2))) [#f #f #f #f])
-;;       (match-tree% (sexp->atomset '(("b")) []))
+;; (seq% (match-tree% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f #f))
+;;       (match-tree% (sexp->atomset '(("b")) #()))
 ;;       ;; clauses
 ;;       (or% (seq% (type-check% "hoge" [#f 0])
 ;;                  ;; RHSes
-;;                  (or% (seq% (match-tree% (sexp->atomset '(("c" 0))) [3])
-;;                             (or% (seq% (type-check% "<" [1 2])
-;;                                        (traverse-context% [1])
-;;                                        (traverse-context% [2])
+;;                  (or% (seq% (match-tree% (sexp->atomset '(("c" 0))) #(3))
+;;                             (or% (seq% (type-check% "<" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
 ;;                                        (instantiate-rhs% '(("d" 3) (4 1) (4 2)))
 ;;                                        (remove-processes% '(2 3 4)))))
-;;                       (seq% (match-tree% (sexp->atomset '(("c" 0))) [3])
-;;                             (or% (seq% (type-check% ">" [1 2])
-;;                                        (traverse-context% [1])
-;;                                        (traverse-context% [2])
+;;                       (seq% (match-tree% (sexp->atomset '(("c" 0))) #(3))
+;;                             (or% (seq% (type-check% ">" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
 ;;                                        (instantiate-rhs% '(("e" 3) (3 1) (3 2)))
 ;;                                        (remove-processes% '(2 3 4)))))))))
 ;;
@@ -96,53 +97,19 @@
       (or (and (port=? port (atomset-port set ix)) ix)
           (and (< ix arity) (loop (+ ix 1)))))))
 
-;; [match-tree% の実装の概要]
-;;
-;; 静的に
-;; 1. tree 側のトラバースの始点を決定
-;; - indices の k 番目が non-#f → tree の k 番目のポートになっているアトムが始点
-;; - indices がすべて #f → tree から任意のアトムを findatom してそれを始点にする
-;;
-;; 動的に
-;; 1. proc 側のトラバースの始点を返すイテレータを作成
-;; 2. イテレータから始点を一つもらう (もう候補がない場合は全体として失敗, #f を返す)
-;; 3. proc と tree を見比べながらトラバース
-;;    - 基点のアトムのファンクタが proc 側と tree 側でマッチしない -> 失敗
-;;    - 基点のアトムのファンクタが proc 側と tree 側で同じ
-;;      - (proc 側, tree 側の２つのアトムが対応していることを記録)
-;;      - それぞれの引数番号について……
-;;        - tree 側のアトムの該当するポートが tree 全体のポートになっている
-;;          - ポートが indices で指定されている
-;;            - proc 側のポートが指定されたポートとマッチしない -> 失敗
-;;            - proc 側のポートが指定されたポートと同じ -> その引数番号については成功
-;;          - ポートが indices で指定されていない -> その引数番号については成功
-;;        - tree 側のアトムの該当するポートは別のアトムに繋がっている
-;;          - proc 側と tree 側で繋がっている先のポート番号がマッチしない -> 失敗
-;;          - proc 側と tree 側で繋がっている先のポート番号は同じ
-;;            - 繋がっている先が proc 側で探索済み
-;;              - tree 側では探索済みでない -> 失敗
-;;              - tree 側でも探索済み
-;;                - ２つのアトムは対応している -> その引数番号については成功
-;;                - 対応しないアトムに繋がっている -> 失敗
-;;            - 繋がっている先が proc 側でまだ探索済みでない
-;;              - 次のアトムは proc 内にある -> そのアトムを基点として再帰的にマッチ
-;;              - 次のアトムが proc 外にある -> 失敗
-;;    ※どこかで失敗した場合には 5. へ進む
-;; 4. プロセスとリンクをスタックにプッシュして next を呼ぶ
-;;    - next が non-#f を返す -> それを全体の戻り値とする
-;;    - next が #f を返す -> スタックを元に戻して 5. へ進む
-;; 5. proc を元に戻して 2. へバックトラック
-
-;; PROC から TREE にマッチする部分プロセスを取り出し (PROC からは削除さ
-;; れる) 、 PSTACK にプッシュしたうえで next を呼び出す。 next の戻り値
-;; が #f の場合、 PROC, LSTACK, PSTACK を元に戻して別のマッチを探す。マッ
-;; チする部分プロセスが存在しない場合、たんに #f を返す。INDICES は
-;; TREE の価数と同じ長さのベクタで、そのそれぞれの要素は#f または自然数
-;; でなければならない。リストの K 番目の要素が自然数N の場合、取り出す
-;; 部分プロセスの第 K 引数は LSTACK の N 番目のポートになる。 K 番目の
-;; 要素が #f の場合は任意のポートがマッチし、next を呼び出す前にそのパー
-;; トナー (＝マッチした部分プロセスの第 K 引数) が LSTACK にプッシュさ
-;; れる。 #f が複数ある場合は、その順にプッシュされる。
+;; プロセス (からいくつかのアトムを除いたもの) PROC から TREE にマッチ
+;; する部分プロセスを取り出し (PROC からは削除される) 、 PSTACK にプッ
+;; シュしたうえで next を呼び出す。 TREE はポートが適切にセットされた空
+;; でないアトム集合で、かつ連結 (あるアトムから他のすべてのアトムに間接
+;; 的につながっている) でなければならない。next の戻り値が #f の場合、
+;; PROC, LSTACK, PSTACK を元に戻して別のマッチを探す。マッチする部分プ
+;; ロセスが存在しない場合、たんに #f を返す。INDICES はTREE の価数と同
+;; じ長さのベクタで、そのそれぞれの要素は #f または自然数でなければなら
+;; ない。リストの K 番目の要素が自然数 N の場合、取り出す部分プロセスの
+;; 第 Kポートは LSTACK の N 番目に格納されたポートにマッチしなければな
+;; らない。K 番目の要素が #f の場合は任意のポートがマッチし、next を呼
+;; び出す前にマッチした部分プロセスの第 K 引数 が LSTACK にプッシュされ
+;; る。複数存在する場合は、K の小さい順にプッシュされる。
 (define (match-tree% tree indices)
   ;; (静的に計算できるものは静的に計算しておく)
   (let* ([arity ;; 探したいプロセスの価数
@@ -226,51 +193,46 @@
           ;; 全てのイテレーションが失敗
           #f)))))
 
-;; ;; [パターンマッチのテスト]
+;; [match-tree% の実装の概要]
 ;;
-;; ;; ---- ポート指定なし (成功)
+;; 静的に
+;; 1. tree 側のトラバースの始点を決定
+;; - indices の k 番目が non-#f → tree の k 番目のポートになっているアトムが始点
+;; - indices がすべて #f → tree から任意のアトムを findatom してそれを始点にする
 ;;
-;; (define matcher (match-tree% (sexp->atomset '(("a" ("b" 0 1)))) #(#f #f)))
-;; (define proc (sexp->atomset '(("a" ("a")) ("a" ("b" ("c") ("d" ("e")))) ("a" ("f")))))
-;; (define pstack (make-stack))
-;; (define lstack (make-stack))
-;;
-;; (matcher proc lstack pstack)
-;;
-;; (atomset-map-atoms atom-name proc)
-;;
-;; (stack-length pstack)
-;; (atomset->sexp (stack-ref pstack 0))
-;;
-;; (stack-length lstack)
-;; (atom-functor (port-atom (stack-ref lstack 0)))
-;; (atom-functor (port-atom (stack-ref lstack 1)))
-;;
-;; ;; ---- ポート指定なし (失敗)
-;;
-;; ;; ---- ポート指定あり (成功)
-;;
-;; (define matcher (match-tree% (sexp->atomset '(("a" ("b" 0 1)))) #(0 #f)))
-;; (define proc (sexp->atomset '(("a" ("a")) ("a" ("b" ("c") ("d" ("e")))) ("a" ("f")))))
-;; (define pstack (make-stack))
-;; (define lstack (rlet1 stack (make-stack)
-;;                  (stack-push! stack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))))
-;;
-;; (matcher proc lstack pstack)
-;;
-;; (atomset-map-atoms atom-name proc)
-;;
-;; (stack-length pstack)
-;; (atomset->sexp (stack-ref pstack 0))
-;;
-;; (stack-length lstack)
-;; (atom-functor (port-atom (stack-ref lstack 1)))
-;;
-;; ;; ---- ポート指定あり (失敗)
+;; 動的に
+;; 1. proc 側のトラバースの始点を返すイテレータを作成
+;; 2. イテレータから始点を一つもらう (もう候補がない場合は全体として失敗, #f を返す)
+;; 3. proc と tree を見比べながらトラバース
+;;    - 基点のアトムのファンクタが proc 側と tree 側でマッチしない -> 失敗
+;;    - 基点のアトムのファンクタが proc 側と tree 側で同じ
+;;      - (proc 側, tree 側の２つのアトムが対応していることを記録)
+;;      - それぞれの引数番号について……
+;;        - tree 側のアトムの該当するポートが tree 全体のポートになっている
+;;          - ポートが indices で指定されている
+;;            - proc 側のポートが指定されたポートとマッチしない -> 失敗
+;;            - proc 側のポートが指定されたポートと同じ -> その引数番号については成功
+;;          - ポートが indices で指定されていない -> その引数番号については成功
+;;        - tree 側のアトムの該当するポートは別のアトムに繋がっている
+;;          - proc 側と tree 側で繋がっている先のポート番号がマッチしない -> 失敗
+;;          - proc 側と tree 側で繋がっている先のポート番号は同じ
+;;            - 繋がっている先が proc 側で探索済み
+;;              - tree 側では探索済みでない -> 失敗
+;;              - tree 側でも探索済み
+;;                - ２つのアトムは対応している -> その引数番号については成功
+;;                - 対応しないアトムに繋がっている -> 失敗
+;;            - 繋がっている先が proc 側でまだ探索済みでない
+;;              - 次のアトムは proc 内にある -> そのアトムを基点として再帰的にマッチ
+;;              - 次のアトムが proc 外にある -> 失敗
+;;    ※どこかで失敗した場合には 5. へ進む
+;; 4. プロセスとリンクをスタックにプッシュして next を呼ぶ
+;;    - next が non-#f を返す -> それを全体の戻り値とする
+;;    - next が #f を返す -> スタックを元に戻して 5. へ進む
+;; 5. proc を元に戻して 2. へバックトラック
 
 ;; ----------------------
 
-;; おそらく match-tree% が実装できれば同じような感じで実装できるだろう
+;; ;; おそらく match-tree% が実装できれば同じような感じで実装できるだろう
 
 ;; ;; PROC からプロセス文脈を１つ取り出し (PROC からは削除される) 、
 ;; ;; PSTACK にプッシュしたうえで next を呼び出す。 next の戻り値が #fの場
