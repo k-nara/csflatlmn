@@ -114,20 +114,20 @@
   ;; (静的に計算できるものは静的に計算しておく)
   (let* ([arity ;; 探したいプロセスの価数
           (atomset-arity tree)]
-         [proc-head-index ;; indices の #f でない適当な要素のインデックス
+         [tree-head-index ;; indices の #f でない適当な要素のインデックス
           (let loop ([ix 0])
             (and (< ix arity)
                  (or (vector-ref indices ix) (loop (+ ix 1)))))]
          [tree-head ;; tree の中で、探索の始点にするアトム
-          (if proc-head-index
-              (port-atom (atomset-port tree proc-head-index))
-              (atomset-find-atom tree))])
+          (if tree-head-index
+              (port-atom (atomset-port tree tree-head-index))
+              (atomset-head tree))]) ;; find-atom よりも head の方が経験上期待が持てる
     ;; (ここから関数本体)
     (lambda% (proc lstack pstack)
       (let1 atom-iter ;; tree-head に対応するアトムを proc から取り出すイテレータ
           (if-let1 given-atom
-              (and proc-head-index
-                   (port-atom (stack-ref lstack (vector-ref indices proc-head-index))))
+              (and tree-head-index
+                   (port-atom (stack-ref lstack (vector-ref indices tree-head-index))))
             (lambda () (begin0 given-atom (set! given-atom #f)))
             (atomset-get-iterator proc (atom-functor tree-head)))
         (let/cc succeed
