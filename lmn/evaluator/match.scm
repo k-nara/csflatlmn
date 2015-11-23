@@ -1,15 +1,18 @@
 (define-module lmn.evaluator.match
   (use lmn.object.atom)
   (use lmn.object.atomset)
+  (use lmn.object.process)
   (use lmn.evaluator.control.pp)
   (use lmn.evaluator.control.stack)
-  (export remove-processes!% match-component%))
+  (export remove-processes!% match-component% traverse-context%))
 
 (select-module lmn.evaluator.match)
 
 ;; パターンマッチングのしくみを提供する。
 
 ;; *NOTE* direct-link を取ってくることはできない (おそらく問題ない)
+;; *NOTE* traverse-context% の実装上、プロセス文脈どうしは直結できない
+;; *NOTE* 引数のないプロセス文脈は書くことができない
 ;; *TODO* プロセスやアトムの再利用を実装すべき
 ;; *TODO* -rassoc-port-ix がアドホック。データ構造の工夫で O(1) にならないか？
 ;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙か？
@@ -108,10 +111,10 @@
 ;; 部分プロセスがそれ以上存在しない場合、たんに #f を返す。 INDICES は
 ;; TREE の価数と同じ長さのベクタで、そのそれぞれの要素は #f または自然
 ;; 数でなければならない。リストの K 番目の要素が自然数 N の場合、取り出
-;; す部分プロセスの第 Kポートは LSTACK の N 番目に格納されたポートにマッ
+;; す部分プロセスの第 K ポートは LSTACK の N 番目に格納されたポートにマッ
 ;; チしなければならない。K 番目の要素が #f の場合は任意のポートがマッチ
-;; し、next を呼び出す前にマッチした部分プロセスの第 K 引数 が LSTACK
-;; にプッシュされる。複数存在する場合は、K の小さい順にプッシュされる。
+;; し、next を呼び出す前にマッチした部分プロセスの第 K 引数 が LSTACKに
+;; プッシュされる。複数存在する場合は、K の小さい順にプッシュされる。
 (define (match-component% tree indices)
   ;; (静的に計算できるものは静的に計算しておく)
   (let* ([arity ;; 探したいプロセスの価数
@@ -142,7 +145,7 @@
                     ;; 名前・アリティをお手本と比較 -> 失敗したら fail
                     (unless (string=? (atom-functor proc-atom) (atom-functor tree-atom))
                       (fail #f))
-                    ;; アトムを proc から newproc と known-atoms に追加して、マッピングを記憶
+                    ;; アトムを newproc, known-atoms に追加して、マッピングを記憶
                     (atomset-add-atom! newproc proc-atom)
                     (atomset-add-atom! known-atoms proc-atom)
                     (hash-table-put! atom-mapping tree-atom proc-atom)
@@ -189,10 +192,10 @@
                         (stack-push! lstack (atomset-arg newproc i))))
                     (if-let1 res (next proc known-atoms lstack pstack)
                       (succeed res))
-                    ;; next が失敗 -> スタックの状態を元に戻して次のイテレーションへ
+                    ;; next が失敗 -> スタックの状態を元に戻す
                     (stack-pop-until! lstack orig-length)
                     (stack-pop! pstack)))
-                ;; (fail を呼ぶとここに来る) 次のイテレーションに移る前に known-atoms を元に戻しておく
+                ;; (fail を呼ぶとここに来る) known-atoms を元に戻して次のイテレーションへ
                 (atomset-map-atoms (cut atomset-remove-atom! known-atoms <>) newproc))))
           ;; 全てのイテレーションが失敗
           #f)))))
@@ -236,24 +239,64 @@
 
 ;; ----------------------
 
-;; ;; おそらく match-component% が実装できれば同じような感じで実装できるだろう
-
-;; ;; PROC からプロセス文脈を１つ取り出し (PROC からは削除される) 、
-;; ;; PSTACK にプッシュしたうえで next を呼び出す。 next の戻り値が #fの場
-;; ;; 合、 PROC, PSTACK を元に戻してから #f を返す。取り出すプロセス文脈が
-;; ;; 存在しない場合、たんに #f を返す。 INDICES は取り出すプロセス文脈の
-;; ;; 価数と同じ長さのリストで、その要素はすべて自然数でなければならない。
-;; ;; INDICES の第 K 要素が N の場合、取り出すプロセス文脈の第 K 引数は
-;; ;; LSTACK の N 番目のポートになる。
-;; (define% ((traverse-context% indices) proc lstack pstack)
-;;   (let* ([arity (length indices)]
-;;          [ports (map (pa$ stack-ref lstack <>) indices)]
-;;          [newproc (make-atomset arity)])
-;;     (let loop ([ix 0] [ports ports])
-;;       (atomset-set-port! newproc ix (car ports))
-;;       (when (pair? ports) (loop (+ ix 1) (cdr ports))))
-;;     (while (pair? ports)
-;;       ())))
+;; PROC からプロセス文脈を１つ切り出す。成功した場合、該当するアトムを
+;; すべて KNOWN-ATOMS にプッシュし、また atomset を PSTACK にプッシュし
+;; たうえで next を呼び出す。 next の戻り値が #f の場合、 KNOWN-ATOMS,
+;; PROC, PSTACK を元に戻してから #f を返す。走査に失敗した場合も同様に
+;; #f を返す。INDICES は取り出すプロセス文脈の価数 (≧１) と同じ長さの
+;; リストで、その要素はすべて自然数でなければならない。 INDICES の第 K
+;; 要素が N のとき、切り出すプロセス文脈の第 K ポートは LSTACK の N 番
+;; 目に格納されたポートになる。効率のため、この関数は切り出す対象のプロ
+;; セス文脈が存在するとき、そのプロセス文脈の繋がっている先のアトムがす
+;; べてKNOWN-ATOMS に含まれていることを仮定する。そうでないのにこの関数
+;; が呼び出された場合、切り出す対象が存在するにもかかわらず #f を返すこ
+;; とがある。
+(define% ((traverse-context% indices) proc known-atoms lstack pstack)
+  (let* ([arity (length indices)]
+         [newproc (make-atomset arity)]
+         [pending-ports (map (^n (cons (stack-ref lstack n) n)) (iota arity))])
+    (let/cc succeed
+      (let/cc fail
+        (while (pair? pending-ports)
+          (let1 head-port (caar pending-ports)
+            (when (atomset-member known-atoms (port-atom head-port)) (fail #f))
+            (atomset-set-port! newproc (cdar pending-ports) head-port)
+            (set! pending-ports (cdr pending-ports))
+            (let loop ([atom (port-atom head-port)])
+              (atomset-add-atom! known-atoms atom)
+              (atomset-add-atom! newproc atom)
+              (dotimes (ix (atom-arity atom))
+                (let1 partner (atom-partner atom ix)
+                  (cond
+                   ;; 1. このルーチンの中ですでにトラバース済み -> ok
+                   [(atomset-member newproc partner)
+                    #t]
+                   ;; 2. 他で取られている -> ポートかも？さもなくば fail
+                   [(atomset-member known-atoms partner)
+                    (let1 port (atom-port atom ix)
+                      (cond [(assoc-ref pending-ports port #f port=?)
+                             => (^n (set! pending-ports
+                                          (alist-delete! port pending-ports port=?))
+                                    (atomset-set-port! newproc n port))]
+                            [(port=? port head-port)
+                             #t]
+                            [else
+                             (fail #f)]))]
+                   ;; 3. 初めてみるアトム -> 再帰
+                   [else
+                    (loop partner)]))))))
+        ;; (トラバース終了)
+        ;; プロセス文脈の引数がプロセス文脈内を指していたら ill-formed -> fail
+        (process-map-args
+         (^a (when (atomset-member newproc (port-atom a)) (fail #f))) newproc)
+        ;; スタックに push して next を呼ぶ
+        (stack-push! pstack newproc)
+        (if-let1 res (next proc known-atoms lstack pstack)
+          (succeed res))
+        (stack-pop! pstack))
+      ;; (fail を呼ぶとここに来る) known-atoms を元に戻して #f を返す
+      (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
+      #f)))
 
 ;; ----------------------
 
