@@ -140,7 +140,8 @@
 
 ;; (port-atom (atom-arg atom n)) を返す。
 (define (atom-partner atom n)
-  (port-atom (atom-arg atom n)))
+  (let1 arg (atom-arg atom n)
+    (if (undefined? arg) (undefined) (port-atom arg))))
 
 ;; ---- hashtable support
 
