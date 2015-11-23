@@ -1,9 +1,9 @@
 (define-module lmn.evaluator.match
   (use lmn.object.atom)
   (use lmn.object.atomset)
-  (use lmn.control.pp)
-  (use lmn.control.stack)
-  (export remove-processes!% match-tree%))
+  (use lmn.evaluator.control.pp)
+  (use lmn.evaluator.control.stack)
+  (export remove-processes!% match-component%))
 
 (select-module lmn.evaluator.match)
 

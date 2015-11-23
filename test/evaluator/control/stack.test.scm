@@ -1,9 +1,9 @@
 (use gauche.test)
 (use test.util)
 
-(test-start "lmn.control.stack")
+(test-start "lmn.evaluator.control.stack")
 
-(test-module 'lmn.control.stack)
+(test-module 'lmn.evaluator.control.stack)
 
 ;; ----------------------
 
