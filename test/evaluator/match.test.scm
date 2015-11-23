@@ -37,7 +37,7 @@
       [lstack (make-stack)]
       [pstack (make-stack)])
   (test* "match success" #t (matcher proc known-atoms lstack pstack) boolean-equal?)
-  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms))
+  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)" '("a" "b") (atomset-map-atoms atom-name (stack-ref pstack 0)) (set-equal?))
   (test* "pstack (3)" "c_1" (atom-functor (port-atom (atomset-arg (stack-ref pstack 0) 0))))
@@ -56,7 +56,7 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)])
-  (test* "match failure" #f (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match success" #f (matcher proc known-atoms lstack pstack) boolean-equal?)
   (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack" 0 (stack-length pstack))
   (test* "lstack" 0 (stack-length lstack))
