@@ -158,17 +158,35 @@
 
 ;; ----------------------
 
+(test-section "direct links")
+
 ;;     ..procd...
-;;     :        :
+;;     :0      1:
 ;; (l)------------(r)
-;;     :        :
+;;  |  :        :  |
+;;  +-----(a)------+
+;;     :2      3:
 ;;     ..........
 
-(define procd (make-atomset 2))
-(define atoml (make-atom "l" 1))
-(define atomr (make-atom "r" 1))
+(define procd (make-atomset 4))
+(define atoml (make-atom "l" 2))
+(define atomr (make-atom "r" 2))
+(define atoma (make-atom "a" 2))
 
+(atom-set-arg! atoml 1 (atom-port atoma 0))
+(atom-set-arg! atoma 0 (atom-port atoml 1))
+
+(atom-set-arg! atomr 1 (atom-port atoma 1))
+(atom-set-arg! atoma 1 (atom-port atomr 1))
+
+(atomset-add-atom! procd atoma)
 (atomset-add-direct-link! procd 0 1)
+(atomset-set-port! procd 2 (atom-port atoma 0))
+(atomset-set-port! procd 3 (atom-port atoma 1))
+
+(test* "atomset-has-direct-link? (1)" #f (atomset-has-direct-link? procd 2 3))
+(test* "atomset-has-direct-link? (2)" #f (atomset-has-direct-link? procd 1 3))
+(test* "atomset-has-direct-link? (3)" #t (atomset-has-direct-link? procd 0 1))
 
 (atomset-set-arg! procd 0 (atom-port atoml 0))
 (atom-set-arg! atoml 0 (atomset-port procd 0))

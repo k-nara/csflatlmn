@@ -4,8 +4,8 @@
   (use lmn.object.atom)
   (export <atomset> make-atomset atomset-arity atomset-set-port! atomset-port
           atomset-arg atomset-set-arg! atomset-add-direct-link!
-          atomset-add-atom! atomset-remove-atom! atomset-member
-          atomset-atoms atomset-get-iterator atomset-find-atom
+          atomset-has-direct-link? atomset-add-atom! atomset-remove-atom!
+          atomset-member atomset-atoms atomset-get-iterator atomset-find-atom
           atomset-map-atoms atomset-copy atomset-head atomset->sexp
           sexp->atomset atomset-deep-copy))
 
@@ -73,6 +73,12 @@
 (define (atomset-add-direct-link! set n m)
   (let1 proxy (slot-ref set 'proxy)
     (port-connect! (atom-port proxy n) (atom-port proxy m))))
+
+;; SET の第 n ポートと第 m ポートの間に direct link が張られているかを
+;; 調べる。
+(define (atomset-has-direct-link? set n m)
+  (let1 proxy (slot-ref set 'proxy)
+    (port-connected? (atom-port proxy n) (atom-port proxy m))))
 
 ;; [なぜこれが direct link かのように振る舞うか？]
 ;;
