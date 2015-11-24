@@ -8,16 +8,16 @@
 
 ;; もし *debug* が #f でないなら、デバッグメッセージを出力する。 デバッ
 ;; グメッセージの次の行のインデントは整数 DLEVEL のぶんだけ深くなる。
-;; ARGS は表示するオブジェクトの列。 DLEVEL が 'push の場合、現在のイン
-;; デントレベルをスタックにプッシュする。 'pop の場合、前回プッシュされ
-;; たインデントレベルに戻す。
-(define (dump dlevel :rest args)
+;; ARGS は表示するオブジェクトの列。 STACKING が 'push の場合、現在のイ
+;; ンデントレベルをスタックにプッシュする。 'pop の場合、前回プッシュさ
+;; れたインデントレベルに戻す。
+(define (dump dlevel stacking :rest args)
   (when *debug*
     (apply print (append (make-list (max (car *debug-level*) 0) " | ") (map x->string args)))
-    (case dlevel
+    (case stacking
       [(push) (push! *debug-level* (car *debug-level*))]
-      [(pop) (pop! *debug-level*)]
-      [else (inc! (car *debug-level*) dlevel)])
+      [(pop) (pop! *debug-level*)])
+    (inc! (car *debug-level*) dlevel)
     (flush)))
 
 ;; "delete!" に似ているが、多くとも１つの要素しか削除しない。重複のない
