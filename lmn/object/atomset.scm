@@ -216,15 +216,15 @@
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
       (let loop ([atom atom] [known-atoms (make-atomset)])
-        (if (= (atom-arity atom) 0) ;; 0-ary atom
+        (if (= (atom-arity atom) 0) ;; ０価アトム
             atom
             (let1 arg (atom-arg atom (- (atom-arity atom) 1))
               (if (undefined? arg)
                   atom ;; connected to nowhere
                   (let1 parent (port-atom arg)
-                    (cond [(not (atomset-member set parent)) ;; connected to somewhere outside
+                    (cond [(not (atomset-member set parent)) ;; set の外に繋がっている
                            atom]
-                          [(atomset-member known-atoms atom) ;; cycle
+                          [(atomset-member known-atoms atom) ;; 閉路を見つけた
                            parent]
                           [else
                            (atomset-add-atom! known-atoms atom)
