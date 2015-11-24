@@ -11,8 +11,8 @@
 ;; パターンマッチングのしくみを提供する。
 
 ;; *NOTE* direct-link を取ってくることはできない (おそらく問題ない)
-;; *NOTE* traverse-context% の実装上、プロセス文脈どうしは直結できない
-;; *NOTE* 引数のないプロセス文脈は書くことができない
+;; *NOTE* traverse-context% が known-atoms を仮定するのでプロセス文脈の直結はできない
+;; *NOTE* traverse-context% する必要があるのでプロセス文脈には必ず引数があり、かつground
 ;; *TODO* プロセスやアトムの再利用を実装すべき
 ;; *TODO* -rassoc-port-ix がアドホック。データ構造の工夫で O(1) にならないか？
 ;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙か？
@@ -248,49 +248,74 @@
 ;; 要素が N のとき、切り出すプロセス文脈の第 K ポートは LSTACK の N 番
 ;; 目に格納されたポートになる。効率のため、この関数は切り出す対象のプロ
 ;; セス文脈が存在するとき、そのプロセス文脈の繋がっている先のアトムがす
-;; べてKNOWN-ATOMS に含まれていることを仮定する。そうでないのにこの関数
-;; が呼び出された場合、切り出す対象が存在するにもかかわらず #f を返すこ
-;; とがある。
+;; べて KNOWN-ATOMS に含まれていることを仮定する。そうでない場合この関
+;; 数の挙動は信頼できない。
 (define% ((traverse-context% indices) proc known-atoms lstack pstack)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
          [pending-ports (map (^n (cons (stack-ref lstack n) n)) (iota arity))])
+    (dump +1 'push
+          "> traverse-context%: "
+          (map (^p #`",(atom-functor (port-atom (car p)))[,(port-ix (car p))]")
+               pending-ports))
     (let/cc succeed
       (let/cc fail
         (while (pair? pending-ports)
-          (let1 head-port (caar pending-ports)
-            (when (atomset-member known-atoms (port-atom head-port)) (fail #f))
-            (atomset-set-port! newproc (cdar pending-ports) head-port)
+          (let ([head-port (caar pending-ports)]
+                [head-port-ix (cdar pending-ports)])
+            (dump +1 #f
+                  "> head port " head-port-ix ": "
+                  (atom-functor (port-atom head-port)) "[" (port-ix head-port) "]")
             (set! pending-ports (cdr pending-ports))
-            (let loop ([atom (port-atom head-port)])
-              (atomset-add-atom! known-atoms atom)
-              (atomset-add-atom! newproc atom)
-              (dotimes (ix (atom-arity atom))
-                (let1 partner (atom-partner atom ix)
-                  (cond
-                   ;; 1. このルーチンの中ですでにトラバース済み -> ok
-                   [(atomset-member newproc partner)
-                    #t]
-                   ;; 2. 他で取られている -> ポートかも？さもなくば fail
-                   [(atomset-member known-atoms partner)
-                    (let1 port (atom-port atom ix)
-                      (cond [(assoc-ref pending-ports port #f port=?)
-                             => (^n (set! pending-ports
-                                          (alist-delete! port pending-ports port=?))
+            (cond
+             ;; 1. 始点のポートがまだ見ぬアトムに繋がっている -> そこからトラバース
+             [(not (atomset-member known-atoms (port-atom head-port)))
+              (atomset-set-port! newproc head-port-ix head-port)
+              (let loop ([atom (port-atom head-port)])
+                (dump 0 #f "- entering atom: " (atom-functor atom))
+                (atomset-add-atom! known-atoms atom)
+                (atomset-add-atom! newproc atom)
+                (dotimes (ix (atom-arity atom))
+                  (dump +1 #f "> check " ix "th arg ...")
+                  (let1 partner (atom-partner atom ix)
+                    (cond
+                     ;; 1a. すでにトラバース済みのアトムに繋がっている
+                     [(atomset-member newproc partner)
+                      (dump -1 #f "o already traversed (" (atom-functor partner) ")")
+                      #t]
+                     ;; 1b. 他で取られているアトムに繋がっている -> ポートでなければ fail
+                     [(atomset-member known-atoms partner)
+                      (let1 port (atom-port atom ix)
+                        (cond [(assoc-ref pending-ports port #f port=?) ;; 新しいポート
+                               => (lambda (n)
+                                    (dump -1 #f "o port " n " found")
+                                    (set! pending-ports (alist-delete1! port pending-ports port=?))
                                     (atomset-set-port! newproc n port))]
-                            [(port=? port head-port)
-                             #t]
-                            [else
-                             (fail #f)]))]
-                   ;; 3. 初めてみるアトム -> 再帰
-                   [else
-                    (loop partner)]))))))
+                              [(port=? port head-port) ;; 入口のポート
+                               (dump -1 #f "o head port found")
+                               #t]
+                              [else ;; ポートでない
+                               (dump 0 'pop "x atom already taken (" (atom-functor partner) ")")
+                               (fail #f)]))]
+                     ;; 1c. 初めてみるアトムに繋がっている -> さらにトラバース
+                     [else
+                      (loop partner)
+                      (dump -1 #f "o success")]))))]
+             ;; 2. 始点のポートが direct link
+             [(assoc (port-partner head-port) pending-ports port=?)
+              => (lambda (p)
+                   (dump 0 #f "- direct-link found: (" head-port-ix ", " (cdr p) ")")
+                   (set! pending-ports (alist-delete1! (car p) pending-ports port=?))
+                   (atomset-add-direct-link! newproc head-port-ix (cdr p)))]
+             ;; 3. 始点のポートが direct link でなく、かつ他で取られているアトム -> fail
+             [else
+              (dump 0 'pop "x head atom already taken")
+              (fail #f)])
+            (dump -1 #f "o head port " head-port-ix " succeeded")))
         ;; (トラバース終了)
-        ;; プロセス文脈の引数がプロセス文脈内を指していたら ill-formed -> fail
-        (process-map-args
-         (^a (when (atomset-member newproc (port-atom a)) (fail #f))) newproc)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
+        (dump 0 'pop "o success")
         (if-let1 res (next proc known-atoms lstack pstack)
           (succeed res))
         (stack-pop! pstack))
