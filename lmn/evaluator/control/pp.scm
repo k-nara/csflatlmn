@@ -8,26 +8,6 @@
 
 ;; *TODO* -cons% の実装があまりエレガントでない
 
-;; [例]
-;; 与えられたリストから、掛けて１６になる異なる２数のペアを選ぶ
-;;
-;; (define search
-;;   (let ([n1 #f] [n2 #f])
-;;     (seq% (lambda% (lst) ;; n1 を選ぶ
-;;                        (let loop ([lst2 lst])
-;;                          (and (pair? lst2)
-;;                               (begin (set! n1 (car lst2))
-;;                                      (or (next (cdr lst2)) (loop (cdr lst2)))))))
-;;             (lambda% (lst2) ;; 残りから n2 を選ぶ
-;;                        (let loop ([lst3 lst2])
-;;                          (and (pair? lst3)
-;;                               (begin (set! n2 (car lst3))
-;;                                      (or (next) (loop (cdr lst3)))))))
-;;             (lambda% () ;; 積が１６であることを確認する
-;;                        (and (= (* n1 n2) 16) (cons n1 n2))))))
-;;
-;; (search '(4 7 2 3 6 1 5 8 9))
-
 ;; (内部関数) 引数の個数を一般化した identity
 (define (-identity% :rest x)
   (car x))
