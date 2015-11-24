@@ -23,6 +23,12 @@
 ;; "delete!" に似ているが、多くとも１つの要素しか削除しない。重複のない
 ;; リストではリストを最後まで走査しないぶん "delete!" よりも高速。
 (define (delete1! x lst :optional [elt=? equal?])
-  (cond [(null? lst) lst]
-        [(elt=? x (car lst)) (cdr lst)]
-        [else (cons (car lst) (delete1! x (cdr lst) elt=?))]))
+  (let loop ([left ()] [right lst])
+    (cond [(null? right) lst]
+          [(not (elt=? (car right) x))
+           (loop right (cdr right))]
+          [(null? left)
+           (cdr right)]
+          [else
+           (set-cdr! left (cdr right))
+           lst])))
