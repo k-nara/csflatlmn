@@ -1,4 +1,5 @@
 (define-module lmn.evaluator.match
+  (use lmn.util)
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.object.process)
@@ -10,8 +11,8 @@
 
 ;; パターンマッチングのしくみを提供する。
 
-;; *NOTE* direct-link を取ってくることはできない (おそらく問題ない)
 ;; *NOTE* traverse-context% が known-atoms を仮定するのでプロセス文脈の直結はできない
+;; *NOTE* match-component% は direct link を探せないので左辺が '=' のみの型ルールは違法
 ;; *NOTE* traverse-context% する必要があるのでプロセス文脈には必ず引数があり、かつground
 ;; *TODO* プロセスやアトムの再利用を実装すべき
 ;; *TODO* -rassoc-port-ix がアドホック。データ構造の工夫で O(1) にならないか？
@@ -87,8 +88,10 @@
 ;; り除き、 next を呼び出す (next が #fを返しても破壊した PROC が元に戻
 ;; ることはないことに注意する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack pstack)
+  (dump +1 #f "> remove-processes% " indices)
   (dolist (ix indices)
     (atomset-map-atoms (^a (atomset-remove-atom! proc a)) (stack-ref pstack ix)))
+  (dump -1 #f "< done")
   (next proc known-atoms lstack pstack))
 
 ;; ----------------------
@@ -137,7 +140,7 @@
             (atomset-get-iterator proc (atom-functor tree-head)))
         (let/cc succeed
           (while (atom-iter) => proc-head
-            (unless (atomset-member known-atoms proc-head)
+            (unless (atomset-member known-atoms proc-head) ;; すでに他に取られていたら失敗
               (let ([atom-mapping (make-hash-table 'equal?)] ;; TreeAtom -> ProcAtom
                     [newproc (make-atomset arity)])
                 (let/cc fail
@@ -236,6 +239,56 @@
 ;;    - next が non-#f を返す -> それを全体の戻り値とする
 ;;    - next が #f を返す -> スタックを元に戻して 5. へ進む
 ;; 5. proc を元に戻して 2. へバックトラック
+
+;; [パターンが空 (direct link) の場合の処理がなぜ必要ないか？]
+;;
+;; - ポートの少なくとも片方がわかっている direct link がルール左辺に出現
+;;
+;;     a(X), b(Y), X = Y :- c.
+;;     a(X), X = Y :- b(Y).
+;;
+;;   → 左辺の変換だけで解決する
+;;
+;;     a(L), b(L) :- c.
+;;     a(Y) :- b(Y).
+;;
+;; - ルール左辺に両端の不明な direct link が出現
+;;
+;;     X = Y, hoge :- a(X), b(Y).
+;;
+;;   → 右辺に移して消せる (世の中には無数に X=X があるので、それにマッチしたとみなせる)
+;;
+;;     hoge :- a(L), b(L), c.
+;;
+;; - ルールに {} をまたぐ direct link が出現
+;;
+;;     a(X) :- { b(Y) :- { X = Y :- c. } }
+;;
+;;   → link 型のプロセス文脈の糖衣構文とみなせる
+;;
+;;     a(X) :- { b(Y) :- { $x[X, Y] | link($x) :- c. } }
+;;
+;; - 型ルール左辺に direct link が出現
+;;
+;;     typedef t1(X, Y) {
+;;         X = Y.                       // 両端が型の引数
+;;         X = Y, a(X, Y).              // 両端がアトムの引数
+;;         V = W :- t2(X, V), t3(Y, W). // 両端が別の型の引数 (※違法)
+;;         X = L, a(L, Y).              // 一端が型の引数、他端がアトムの引数
+;;         X = L :- t2(L, Y).           // 一端が型の引数、他端が別の型の引数
+;;         V = W, a(X, V) :- t2(W, Y).  // 一端がアトムの引数、他端が別の型の引数
+;;     }
+;;
+;;   → '=' のみの左辺は linked 型のエイリアス、それ以外の合法な '=' は変換で消える
+;;
+;;     typedef t1(X, Y) {
+;;         :- linked(X, Y).       // linked 型の糖衣構文
+;;         a(L, L).               // 左辺の変換で解決
+;;         :- t2(X, L), t3(Y, L). // (これは違法)
+;;         a(X, Y).               // 左辺の変換で解決
+;;         :- t2(X, Y).           // 右辺に移して解決
+;;         a(X, W) :- t2(W, Y).   // 左辺の変換で解決
+;;     }
 
 ;; ----------------------
 
