@@ -27,14 +27,14 @@
 
 ;; [例1b.ルールを整理 (このオブジェクトは実際には作られない)]
 ;;
-;; rule{      p0                  l0 l1 l2    p1
-;;     trees: (sexp->atomset ("a"  0  1  2)), (sexp->atomset ("b")) ; 連結成分に分割
-;;     bindings: (#f #f #f #f), ()
+;; rule{         p0                   l0 l1 l2    p1
+;;     patterns: (sexp->atomset '(("a" 0  1  2))) (sexp->atomset '(("b")))
+;;     bindings: (#f #f #f), ()
 ;;     clauses: clause{             l3
 ;;                  guards: ("hoge" #f 0)
-;;                  rhs: rule{      p2
-;;                           trees: ("c" 0)
-;;                           bindings: (3) ; -> l3 が 最初の tree の第 0 引数
+;;                  rhs: rule{         p2
+;;                           patterns: (sexp->atomset '(("c" 0)))
+;;                           bindings: (3) ; -> l3 が 最初の pattern の第 0 引数
 ;;                           clauses: clause{
 ;;                                        guards: ("<" 1 2)
 ;;                                                  p3  p4
@@ -43,8 +43,8 @@
 ;;                                             ; -> instantiate 後、 p2, p3, p4 が削除される
 ;;                                    }
 ;;                       },
-;;                       rule{      p2
-;;                           trees: ("c" 0)
+;;                       rule{         p2
+;;                           patterns: (sexp->atomset '(("c" 0)))
 ;;                           bindings: (3)
 ;;                           clauses: clause{
 ;;                                        guards: (">" 1 2)
@@ -62,10 +62,10 @@
 
 ;; [例1c.プロシージャを生成]
 ;;
-;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f #f))
+;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2)) #(#f #f #f)))
 ;;       (match-component% (sexp->atomset '(("b")) #()))
 ;;       ;; clauses
-;;       (or% (seq% (type-check% "hoge" [#f 0])
+;;       (or% (seq% (type-check% "hoge" #(#f 0))
 ;;                  (traverse-context% #(0 3))
 ;;                  ;; RHSes
 ;;                  (or% (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
@@ -82,7 +82,6 @@
 ;;                                        (remove-processes% '(2 3 4)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
-;; ※どれをベクタにしてどれをリストにすべきか？
 
 ;; ---- remove-processes%
 
@@ -104,65 +103,65 @@
       (or (and (port=? port (atomset-port set ix)) ix)
           (and (< ix arity) (loop (+ ix 1)))))))
 
-;; プロセス PROC からアトム集合 KNOWN-ATOMS を除いたものから、 TREE に
-;; マッチする部分プロセスを探し出す。 TREE はポートが適切にセットされた
-;; 空でないアトム集合で、かつ連結 (あるアトムから他のすべてのアトムに間
-;; 接的につながっている) でなければならない。見つかった場合、該当するア
-;; トムをすべて KNOWN-ATOMS にプッシュし、また atomset を PSTACK にプッ
-;; シュしたうえで next を呼び出す。next の戻り値が #f の場合、PROC,
+;; プロセス PROC からアトム集合 KNOWN-ATOMS を除いたものから、 PAT にマッ
+;; チする部分プロセスを探し出す。 PAT はポートが適切にセットされた空で
+;; ないアトム集合で、かつ連結 (あるアトムから他のすべてのアトムに間接的
+;; につながっている) でなければならない。見つかった場合、該当するアトム
+;; をすべて KNOWN-ATOMS にプッシュし、また atomset を PSTACK にプッシュ
+;; したうえで next を呼び出す。next の戻り値が #f の場合、PROC,
 ;; KNOWN-ATOMS, LSTACK, PSTACK を元に戻して別のマッチを探す。マッチする
 ;; 部分プロセスがそれ以上存在しない場合、たんに #f を返す。 INDICES は
-;; TREE の価数と同じ長さのベクタで、そのそれぞれの要素は #f または自然
-;; 数でなければならない。リストの K 番目の要素が自然数 N の場合、取り出
-;; す部分プロセスの第 K ポートは LSTACK の N 番目に格納されたポートにマッ
+;; PAT の価数と同じ長さのベクタで、そのそれぞれの要素は #f または自然数
+;; でなければならない。リストの K 番目の要素が自然数 N の場合、取り出す
+;; 部分プロセスの第 K ポートは LSTACK の N 番目に格納されたポートにマッ
 ;; チしなければならない。K 番目の要素が #f の場合は任意のポートがマッチ
 ;; し、next を呼び出す前にマッチした部分プロセスの第 K 引数 が LSTACKに
 ;; プッシュされる。複数存在する場合は、K の小さい順にプッシュされる。
-(define (match-component% tree indices)
+(define (match-component% pat indices)
   ;; (静的に計算できるものは静的に計算しておく)
   (let* ([arity ;; 探したいプロセスの価数
-          (atomset-arity tree)]
-         [tree-head-index ;; indices の #f でない適当な要素のインデックス
+          (atomset-arity pat)]
+         [pat-head-index ;; indices の #f でない適当な要素のインデックス
           (let loop ([ix 0])
             (and (< ix arity)
                  (or (vector-ref indices ix) (loop (+ ix 1)))))]
-         [tree-head ;; tree の中で、探索の始点にするアトム
-          (if tree-head-index
-              (port-atom (atomset-port tree tree-head-index))
-              (atomset-head tree))]) ;; 経験的に find-atom よりもよい始点が得られる
+         [pat-head ;; pat の中で、探索の始点にするアトム
+          (if pat-head-index
+              (port-atom (atomset-port pat pat-head-index))
+              (atomset-head pat))]) ;; 経験的に find-atom よりもよい始点が得られる
     ;; (ここから関数本体)
     (lambda% (proc known-atoms lstack pstack)
-      (let1 atom-iter ;; tree-head に対応するアトムを proc から取り出すイテレータ
+      (let1 atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
           (if-let1 given-atom
-              (and tree-head-index
-                   (port-atom (stack-ref lstack (vector-ref indices tree-head-index))))
+              (and pat-head-index
+                   (port-atom (stack-ref lstack (vector-ref indices pat-head-index))))
             (lambda () (begin0 given-atom (set! given-atom #f)))
-            (atomset-get-iterator proc (atom-functor tree-head)))
+            (atomset-get-iterator proc (atom-functor pat-head)))
         (let/cc succeed
           (while (atom-iter) => proc-head
             (unless (atomset-member known-atoms proc-head) ;; すでに他に取られていたら失敗
-              (let ([atom-mapping (make-hash-table 'equal?)] ;; TreeAtom -> ProcAtom
+              (let ([atom-mapping (make-hash-table 'equal?)] ;; PatAtom -> ProcAtom
                     [newproc (make-atomset arity)])
                 (let/cc fail
-                  (let loop ([proc-atom proc-head] [tree-atom tree-head])
+                  (let loop ([proc-atom proc-head] [pat-atom pat-head])
                     ;; 名前・アリティをお手本と比較 -> 失敗したら fail
-                    (unless (string=? (atom-functor proc-atom) (atom-functor tree-atom))
+                    (unless (string=? (atom-functor proc-atom) (atom-functor pat-atom))
                       (fail #f))
                     ;; アトムを newproc, known-atoms に追加して、マッピングを記憶
                     (atomset-add-atom! newproc proc-atom)
                     (atomset-add-atom! known-atoms proc-atom)
-                    (hash-table-put! atom-mapping tree-atom proc-atom)
+                    (hash-table-put! atom-mapping pat-atom proc-atom)
                     ;; proc-atom の各引数を処理
                     (dotimes (ix (atom-arity proc-atom))
                       (let* ([proc-arg (atom-arg proc-atom ix)]
                              [proc-arg-atom (port-atom proc-arg)]
-                             [tree-arg (atom-arg tree-atom ix)]
-                             [tree-arg-atom (and (not (undefined? tree-arg)) (port-atom tree-arg))])
+                             [pat-arg (atom-arg pat-atom ix)]
+                             [pat-arg-atom (and (not (undefined? pat-arg)) (port-atom pat-arg))])
                         (cond
-                         ;; 1. tree のポートに来た -> indices と比較して正しいポートか確認
-                         [(not (and tree-arg-atom (atomset-member tree tree-arg-atom)))
-                          (let ([port-index ;; tree の何番目のポートか？
-                                 (-rassoc-port-ix tree (atom-port tree-atom ix))]
+                         ;; 1. pat のポートに来た -> indices と比較して正しいポートか確認
+                         [(not (and pat-arg-atom (atomset-member pat pat-arg-atom)))
+                          (let ([port-index ;; pat の何番目のポートか？
+                                 (-rassoc-port-ix pat (atom-port pat-atom ix))]
                                 [proc-port ;; proc-atom の ix 番目のポート
                                  (atom-port proc-atom ix)])
                             ;; ポートが指定されていて、かつマッチしない -> fail
@@ -172,18 +171,18 @@
                             ;;成功 -> newproc にポートをセット
                             (atomset-set-port! newproc port-index proc-port))]
                          ;; 2. arg の指しているポートのインデックスが異なる -> fail
-                         [(not (= (port-ix proc-arg) (port-ix tree-arg)))
+                         [(not (= (port-ix proc-arg) (port-ix pat-arg)))
                           (fail #f)]
                          ;; 3. 次のアトムがすでに探索済 -> 正しいアトムに繋がっているかだけ確認
                          [(atomset-member newproc proc-arg-atom)
                           (unless (and-let* ([corresponding-atom
-                                              (hash-table-get atom-mapping tree-arg-atom #f)])
+                                              (hash-table-get atom-mapping pat-arg-atom #f)])
                                     (atom=? proc-arg-atom corresponding-atom))
                             (fail #f))]
                          ;; 4. 次のアトムも探索対象範囲内にある -> 再帰的にトラバース
                          [(and (atomset-member proc proc-arg-atom)
                                (not (atomset-member known-atoms proc-arg-atom)))
-                          (loop proc-arg-atom tree-arg-atom)]
+                          (loop proc-arg-atom pat-arg-atom)]
                          ;; 5. ポートでも循環でもなく、探索対象の範囲外につながっている -> fail
                          [else
                           (fail #f)]))))
@@ -206,29 +205,29 @@
 ;; [match-component% の実装の概要]
 ;;
 ;; 静的に
-;; 1. tree 側のトラバースの始点を決定
-;; - indices の k 番目が non-#f → tree の k 番目のポートになっているアトムが始点
-;; - indices がすべて #f → tree から任意のアトムを findatom してそれを始点にする
+;; 1. pat 側のトラバースの始点を決定
+;; - indices の k 番目が non-#f → pat の k 番目のポートになっているアトムが始点
+;; - indices がすべて #f → pat から任意のアトムを findatom してそれを始点にする
 ;;
 ;; 動的に
 ;; 1. proc 側のトラバースの始点を返すイテレータを作成
 ;; 2. イテレータから始点を一つもらう (もう候補がない場合は全体として失敗, #f を返す)
-;; 3. proc と tree を見比べながらトラバース
-;;    - 基点のアトムのファンクタが proc 側と tree 側でマッチしない -> 失敗
-;;    - 基点のアトムのファンクタが proc 側と tree 側で同じ
-;;      - (proc 側, tree 側の２つのアトムが対応していることを記録)
+;; 3. proc と pat を見比べながらトラバース
+;;    - 基点のアトムのファンクタが proc 側と pat 側でマッチしない -> 失敗
+;;    - 基点のアトムのファンクタが proc 側と pat 側で同じ
+;;      - (proc 側, pat 側の２つのアトムが対応していることを記録)
 ;;      - それぞれの引数番号について……
-;;        - tree 側のアトムの該当するポートが tree 全体のポートになっている
+;;        - pat 側のアトムの該当するポートが pat 全体のポートになっている
 ;;          - ポートが indices で指定されている
 ;;            - proc 側のポートが指定されたポートとマッチしない -> 失敗
 ;;            - proc 側のポートが指定されたポートと同じ -> その引数番号については成功
 ;;          - ポートが indices で指定されていない -> その引数番号については成功
-;;        - tree 側のアトムの該当するポートは別のアトムに繋がっている
-;;          - proc 側と tree 側で繋がっている先のポート番号がマッチしない -> 失敗
-;;          - proc 側と tree 側で繋がっている先のポート番号は同じ
+;;        - pat 側のアトムの該当するポートは別のアトムに繋がっている
+;;          - proc 側と pat 側で繋がっている先のポート番号がマッチしない -> 失敗
+;;          - proc 側と pat 側で繋がっている先のポート番号は同じ
 ;;            - 繋がっている先が proc 側で探索済み
-;;              - tree 側では探索済みでない -> 失敗
-;;              - tree 側でも探索済み
+;;              - pat 側では探索済みでない -> 失敗
+;;              - pat 側でも探索済み
 ;;                - ２つのアトムは対応している -> その引数番号については成功
 ;;                - 対応しないアトムに繋がっている -> 失敗
 ;;            - 繋がっている先が proc 側でまだ探索済みでない
