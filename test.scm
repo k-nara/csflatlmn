@@ -12,7 +12,7 @@
 (use lmn.evaluator.control.stack)
 (use lmn.evaluator.control.pp)
 (use lmn.evaluator.error)
-(use lmn.evaluator.match)
+(use lmn.evaluator.rule)
 
 (load "./test/object/atom.test.scm")
 (load "./test/object/atomset.test.scm")
@@ -21,4 +21,4 @@
 (load "./test/evaluator/control/stack.test.scm")
 (load "./test/evaluator/control/pp.test.scm")
 (load "./test/evaluator/error.test.scm")
-(load "./test/evaluator/match.test.scm")
+(load "./test/evaluator/rule.test.scm")

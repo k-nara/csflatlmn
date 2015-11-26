@@ -1,4 +1,4 @@
-(define-module lmn.evaluator.match
+(define-module lmn.evaluator.rule
   (use lmn.util)
   (use lmn.object.atom)
   (use lmn.object.atomset)
@@ -7,7 +7,7 @@
   (use lmn.evaluator.control.stack)
   (export remove-processes!% match-component% traverse-context%))
 
-(select-module lmn.evaluator.match)
+(select-module lmn.evaluator.rule)
 
 ;; パターンマッチングのしくみを提供する。
 
@@ -298,16 +298,6 @@
 ;; ということで、違法ではないすべての場合で左辺から direct link を消去
 ;; できる (右辺に direct link が残ることはあるが、それはたんなるアトム
 ;; の接続を表すルールなのでパターンマッチには関係ない)。
-
-;; ;; ---- atomset-dissect!
-;;
-;; ;; 部分プロセス PROC を受け取り、PROC を連結部分のリストに分けて返す。
-;; ;; PROC は破壊される。
-;; (define (atomset-dissect! proc)
-;;   (let ([components ()])
-;;     (while (atomset-find-atom! proc) => head-atom
-;;       (let1 newproc (make-atomset)
-;;         ))))
 
 ;; ---- traverse-context%
 
