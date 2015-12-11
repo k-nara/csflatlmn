@@ -10,7 +10,7 @@
 ;; ArrayList のように適宜拡大される配列で、アロケーションユニットごとに
 ;; 全体がコピーされるので注意する。
 
-(define *stack-allocation-unit* 30)
+(define *stack-allocation-unit* 15)
 
 ;; スタックのオブジェクト。
 (define-class <stack> ()
@@ -52,7 +52,7 @@
 (define (stack-pop! stack :optional [n 1])
   (let1 length (stack-length stack)
     (when (< length n)
-      (error "Cannot operate pop for an empty stack."))
+      (error "Cannot operate pop on an empty stack."))
     (slot-set! stack 'length (- length n))))
 
 ;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。そのよ
