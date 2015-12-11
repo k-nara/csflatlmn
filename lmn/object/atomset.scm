@@ -165,8 +165,8 @@
 ;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合は
 ;; 任意の) アトムを順に返すジェネレータを作る。このジェネレータはすべて
 ;; のアトムを走査し終えると #f を返す。 SET に破壊的な変更が加わった場
-;; 合、その変更が加わる前に作成されたジェネレータのそれ以降の挙動は未定
-;; 義である。
+;; 合、その変更が加わる前に作成されたジェネレータのそれ以降の挙動は信頼
+;; できない。
 (define (atomset-get-iterator set :optional [functor #f])
   (cond [(not functor)
          (with-iterator [(slot-ref set 'atoms) atomset-end? atomset-next]
