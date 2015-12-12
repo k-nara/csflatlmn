@@ -23,8 +23,8 @@
          (stack-push! pstack proc-b)
          (atomset-add-atom! proc-c (atomset-find-atom proc (functor "c" 0)))
          (stack-push! pstack proc-c)
-         ((remove-processes!% '(0 2)) :next (^(p _ _ _) (atomset-map-atoms atom-name p))
-          proc (make-atomset) (make-stack) pstack))
+         ((remove-processes!% '(0 2)) :next (^(p _ _ _ _) (atomset-map-atoms atom-name p))
+          proc (make-atomset) (make-stack) pstack #f))
        (set-equal?))
 
 ;; ----------------------
@@ -36,7 +36,7 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)])
-  (test* "match success" #t (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match success" #t (matcher proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)" '("a" "b") (atomset-map-atoms atom-name (stack-ref pstack 0)) (set-equal?))
@@ -56,7 +56,7 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)])
-  (test* "match success" #f (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match success" #f (matcher proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack" 0 (stack-length pstack))
   (test* "lstack" 0 (stack-length lstack))
@@ -73,7 +73,7 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)])
-  (test* "match succcess" #t (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match succcess" #t (matcher proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "known-atoms" '("a" "a" "a") (atomset-map-atoms atom-name known-atoms))
   (test* "pstack" 3 (stack-length pstack))
   (test* "lstack" 0 (stack-length lstack))
@@ -91,7 +91,7 @@
   (set-cdr! (cdr procs) procs) ;; proc を無限循環リストにする
   ;; 成功するマッチと失敗するマッチを交互に１００回試す
   (dotimes (_ 100)
-    (matcher (atomset-deep-copy (car procs)) (make-atomset) lstack pstack)
+    (matcher (atomset-deep-copy (car procs)) (make-atomset) lstack pstack #f)
     (set! procs (cdr procs)))
   (test* "pstack" 50 (stack-length pstack))
   (test* "lstack" 100 (stack-length lstack)))
@@ -107,7 +107,7 @@
       [pstack (make-stack)])
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "d" 1)) 0))
-  (test* "match success" #t (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match success" #t (matcher proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)" '("a" "b") (atomset-map-atoms atom-name (stack-ref pstack 0)) (set-equal?))
@@ -130,7 +130,7 @@
       [pstack (make-stack)])
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "y" 1)) 0))
-  (test* "match success" #f (matcher proc known-atoms lstack pstack) boolean-equal?)
+  (test* "match success" #f (matcher proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "pstack" 0 (stack-length pstack))
   (test* "lstack" 2 (stack-length lstack))
@@ -144,9 +144,9 @@
       [proc1 (sexp->atomset '(("a" L1 L2) ("b" L1 L2)))]
       [proc2 (sexp->atomset '(("a" L1 L2) ("b" L2 L1)))])
   (test* "match success (1)"
-         #f (matcher proc1 (make-atomset) (make-stack) (make-stack)) boolean-equal?)
+         #f (matcher proc1 (make-atomset) (make-stack) (make-stack) #f) boolean-equal?)
   (test* "match success (2)"
-         #t (matcher proc2 (make-atomset) (make-stack)) boolean-equal?))
+         #t (matcher proc2 (make-atomset) (make-stack) #f) boolean-equal?))
 
 ;; ----------------------
 
@@ -156,9 +156,9 @@
       [proc1 (sexp->atomset '(("a" ("b") ("c"))))]
       [proc2 (sexp->atomset '(("a" L1 L1) ("b" ("c"))))])
   (test* "match success (1)"
-         #f (matcher proc1 (make-atomset) (make-stack) (make-stack)) boolean-equal?)
+         #f (matcher proc1 (make-atomset) (make-stack) (make-stack) #f) boolean-equal?)
   (test* "match success (2)"
-         #t (matcher proc2 (make-atomset) (make-stack) (make-stack)) boolean-equal?))
+         #t (matcher proc2 (make-atomset) (make-stack) (make-stack) #f) boolean-equal?))
 
 ;; ----------------------
 
@@ -171,8 +171,8 @@
       [pstack (make-stack)]
       [next-args #f])
   (test* "`next' arguments"
-         (list proc known-atoms lstack pstack)
-         (matcher :next (^ x x) proc known-atoms lstack pstack)))
+         (list proc known-atoms lstack pstack #f)
+         (matcher :next (^ x x) proc known-atoms lstack pstack #f)))
 
 ;; ----------------------
 
@@ -180,9 +180,9 @@
 
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (lambda% (_ _ l _) (inc! results) #f))]
+                       (lambda% (_ _ l _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
-  (test* "return value" #f (searcher proc (make-atomset) (make-stack) (make-stack)))
+  (test* "return value" #f (searcher proc (make-atomset) (make-stack) (make-stack) #f))
   (test* "found results" 4 results)
   (test* "proc" '("n""1""n""2""n""3""n""4") (atomset-map-atoms atom-name proc) (set-equal?)))
 
@@ -193,9 +193,9 @@
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                        (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (lambda% (_ _ l _) (inc! results) #f))]
+                       (lambda% (_ _ l _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
-  (test* "return value" #f (searcher proc (make-atomset) (make-stack) (make-stack)))
+  (test* "return value" #f (searcher proc (make-atomset) (make-stack) (make-stack) #f))
   (test* "found pairs" 12 results)
   (test* "proc" '("n""1""n""2""n""3""n""4") (atomset-map-atoms atom-name proc) (set-equal?)))
 
@@ -211,11 +211,11 @@
        [known-atoms3 (rlet1 set (atomset-copy known-atoms2)
                        (atomset-add-atom! set (atomset-find-atom proc (functor "d" 2))))])
   (test* "match success (1)"
-         #t (matcher proc known-atoms1 (make-stack) (make-stack)) boolean-equal?)
+         #t (matcher proc known-atoms1 (make-stack) (make-stack) #f) boolean-equal?)
   (test* "match success (2)"
-         #t (matcher proc known-atoms2 (make-stack) (make-stack)) boolean-equal?)
+         #t (matcher proc known-atoms2 (make-stack) (make-stack) #f) boolean-equal?)
   (test* "match success (3)"
-         #f (matcher proc known-atoms3 (make-stack) (make-stack)) boolean-equal?))
+         #f (matcher proc known-atoms3 (make-stack) (make-stack) #f) boolean-equal?))
 
 ;; ----------------------
 
@@ -223,7 +223,7 @@
 
 (let ([searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                       (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                      (lambda% (_ _ l _)
+                      (lambda% (_ _ l _ _)
                         (let ([name1 (atom-name (port-atom (stack-ref l 0)))]
                               [name2 (atom-name (port-atom (stack-ref l 1)))])
                           (and (= (* (string->number name1) (string->number name2)) 16)
@@ -231,7 +231,9 @@
       [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))
                              ("n" ("5")) ("n" ("6")) ("n" ("7")) ("n" ("8")) ("n" ("9"))))])
   (test* "examples (1)"
-         '("2" "8") (searcher proc (make-atomset) (make-stack) (make-stack)) (set-equal?)))
+         '("2" "8")
+         (searcher proc (make-atomset) (make-stack) (make-stack) #f)
+         (set-equal?)))
 
 
 ;; ----------------------
@@ -247,7 +249,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "g" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "g" 1)) 0))
-  (test* "traverse success" #t (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #t (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)"
@@ -270,7 +272,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "g" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "g" 1)) 0))
-  (test* "traverse success" #t (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #t (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)"
@@ -291,7 +293,7 @@
       [pstack (make-stack)])
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "a" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
-  (test* "traverse success" #t (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #t (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 1 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)"
@@ -314,7 +316,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "b" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "b" 1)) 0))
-  (test* "traverse success" #t (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #t (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)" '((0 1)) (atomset->sexp (stack-ref pstack 0)) (set-equal? (set-equal?)))
@@ -336,7 +338,7 @@
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "b" 1)) 0))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))
-  (test* "traverse success" #t (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #t (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 3 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)"
@@ -356,7 +358,7 @@
       [pstack (make-stack)])
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "a" 2)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 2)) 0))
-  (test* "traverse success" #f (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #f (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 1 (stack-length lstack))
   (test* "pstack" 0 (stack-length pstack))
   (test* "known-atoms" '("a") (atomset-map-atoms atom-name known-atoms) (set-equal?))
@@ -374,7 +376,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "a" 1)))
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "b" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
-  (test* "traverse success" #f (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #f (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 1 (stack-length lstack))
   (test* "pstack" 0 (stack-length pstack))
   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
@@ -392,7 +394,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "a" 1)))
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "c" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "a" 1)) 0))
-  (test* "traverse success" #f (traverser proc known-atoms lstack pstack) boolean-equal?)
+  (test* "traverse success" #f (traverser proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 1 (stack-length lstack))
   (test* "pstack" 0 (stack-length pstack))
   (test* "known-atoms" '("a" "c") (atomset-map-atoms atom-name known-atoms) (set-equal?))
@@ -412,7 +414,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "c" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))
   (test* "traverse success"
-         #f (traverser :next (^ _ #f) proc known-atoms lstack pstack) boolean-equal?)
+         #f (traverser :next (^ _ #f) proc known-atoms lstack pstack #f) boolean-equal?)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack" 0 (stack-length pstack))
   (test* "known-atoms" '("a" "c") (atomset-map-atoms atom-name known-atoms) (set-equal?))
@@ -433,8 +435,8 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "c" 1)))
   (stack-push! lstack (atom-arg (atomset-find-atom proc (functor "c" 1)) 0))
   (test* "traverse success"
-         #t (traverser :next (^ _ (set! args _) #t) proc known-atoms lstack pstack))
-  (test* "`next' args" (list proc known-atoms lstack pstack) args)
+         #t (traverser :next (^ _ (set! args _) #t) proc known-atoms lstack pstack #f))
+  (test* "`next' args" (list proc known-atoms lstack pstack #f) args)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
   (test* "pstack (2)" '("b") (atomset-map-atoms atom-name (stack-ref pstack 0)) (set-equal?))

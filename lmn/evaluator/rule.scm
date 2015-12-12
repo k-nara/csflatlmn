@@ -280,10 +280,10 @@
 ;; PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC から取
 ;; り除き、 next を呼び出す (next が #fを返しても破壊した PROC が元に戻
 ;; ることはないことに注意する)。
-(define% ((remove-processes!% indices) proc known-atoms lstack pstack)
+(define% ((remove-processes!% indices) proc known-atoms lstack pstack type-env)
   (dolist (ix indices)
     (atomset-map-atoms (^a (atomset-remove-atom! proc a)) (stack-ref pstack ix)))
-  (next proc known-atoms lstack pstack))
+  (next proc known-atoms lstack pstack type-env))
 
 ;; ---- match-component%
 
@@ -322,7 +322,7 @@
               (port-atom (atomset-port pat pat-head-index))
               (atomset-head pat))]) ;; 経験的に find-atom よりもよい始点が得られる
     ;; (ここから関数本体)
-    (lambda% (proc known-atoms lstack pstack)
+    (lambda% (proc known-atoms lstack pstack type-env)
       (let1 atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
           (if-let1 given-atom
               (and pat-head-index
@@ -384,7 +384,7 @@
                     (dotimes (i arity)
                       (unless (vector-ref indices i)
                         (stack-push! lstack (atomset-arg newproc i))))
-                    (if-let1 res (next proc known-atoms lstack pstack)
+                    (if-let1 res (next proc known-atoms lstack pstack type-env)
                       (succeed res))
                     ;; next が失敗 -> スタックの状態を元に戻す
                     (stack-pop-until! lstack orig-length)
@@ -504,7 +504,7 @@
 ;; セス文脈が存在するとき、そのプロセス文脈の繋がっている先のアトムがす
 ;; べて KNOWN-ATOMS に含まれていることを仮定する。そうでない場合この関
 ;; 数の挙動は信頼できない。
-(define% ((traverse-context% indices) proc known-atoms lstack pstack)
+(define% ((traverse-context% indices) proc known-atoms lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
          [pending-ports (map (^n (cons (stack-ref lstack n) n)) (iota arity))])
@@ -552,7 +552,7 @@
         ;; (トラバース終了)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
-        (if-let1 res (next proc known-atoms lstack pstack)
+        (if-let1 res (next proc known-atoms lstack pstack type-env)
           (succeed res))
         (stack-pop! pstack))
       ;; (fail を呼ぶとここに来る) known-atoms を元に戻して #f を返す
