@@ -2,9 +2,9 @@
 (use lmn.evaluator.control.pp)
 (use test.util)
 
-(test-start "lmn.evaluator.rule")
+(test-start "lmn.evaluator.operations")
 
-(test-module 'lmn.evaluator.rule)
+(test-module 'lmn.evaluator.operations)
 
 ;; ----------------------
 
