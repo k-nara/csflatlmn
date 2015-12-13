@@ -11,7 +11,6 @@
 (use lmn.parser.peg)
 (use lmn.evaluator.control.stack)
 (use lmn.evaluator.control.pp)
-(use lmn.evaluator.error)
 (use lmn.evaluator.operations)
 
 (load "./test/object/atom.test.scm")
@@ -20,5 +19,4 @@
 (load "./test/parser/peg.test.scm")
 (load "./test/evaluator/control/stack.test.scm")
 (load "./test/evaluator/control/pp.test.scm")
-(load "./test/evaluator/error.test.scm")
 (load "./test/evaluator/operations.test.scm")
