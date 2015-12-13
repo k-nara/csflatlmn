@@ -11,6 +11,8 @@
 
 (select-module lmn.object.atomset)
 
+;; ※このファイルを読む前に object/atom.scm を読むべき
+
 ;; 自由リンク管理機能を備えたアトムの集合 <atomset> を提供する。
 ;; <atomset> はアトムの追加・削除、あるアトムが含まれているかの確認を定
 ;; 数時間で行うことができ、また <atomset> から所定のファンクタを持つア

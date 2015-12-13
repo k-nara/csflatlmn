@@ -1,3 +1,5 @@
+;; *WIP*
+
 ;; - instantiate中にリンクが作られるパターンの例も書いておく
 ;; - やっぱ type-env も引き回す必要がありそう
 
@@ -192,77 +194,3 @@
 ;;               (push-process% (sexp->atomset '(("d" 0))))
 ;;               (instantiate-rhs% '((3 #f) (2 2 #f) (4 3)))
 ;;               (remove-processes% '(0 1 2)))))
-
-;; ---- 型の例
-
-;; [例2a.LMNtal 構文で書かれた型]
-;;
-;; typedef same_len(T1, H1, T2, H2) {
-;;     cons(Car1, Cdr1, H1), cons(Car2, Cdr2, H2) :- same_len(T1, Cdr1, T2, Cdr2).
-;;     H1 = T1, H2 = T2.
-;; }
-
-;; [例2b.型を整理]
-;;
-;; type{  a0~a3
-;;     arity: 4
-;;     rules: typerule{
-;;                patterns:
-;;                subgoals: ("connected" a1 a0), ("connected" a3 a2) ;; 組込み型のみのものが先
-;;            }
-;;            typerule {
-;;                patterns: (sexp->atomset '(("cons" 0 1 2))),
-;;                          (sexp->atomset '(("cons" 0 1 2)))
-;;                           l4 l5     l6 l7
-;;                bindings: (#f #f a1) (#f #f a3)
-;;                subgoals: ("same_len" a0 5 a2 7) ;; 再帰するものは後
-;;            }
-;; }
-
-;; [例2c.型検査ルーチンを生成する関数を生成]
-;;
-;; (let ([arity 4]
-;;       [rules `([()
-;;                 ("connected" "connected")
-;;                 ([(1) (0)] [(3) (2)])]
-;;                [(,(sexp->atomset '(("cons" 0 1 2))) ,(sexp->atomset '(("cons" 0 1 2))))
-;;                 ("same_len")
-;;                 ([(0) 5 (2) 7])])])
-;;   (lambda (args)
-;;     (lambda% (proc known-atoms lstack pstack)
-;;       (let ([newlstack (make-stack)])
-;;         ;; newlstack に引数を push
-;;         (dotimes (i arity)
-;;           (stack-push! newlstack (if-let1 ix (vector-ref args i) (stack-ref lstack ix) #f)))
-;;         (apply or% (map (^r ;; rule
-;;                           (let* ([count 0]
-;;                                  [return-ix ()]
-;;                                  [bindings
-;;                                   (map (^x ;; binding-list
-;;                                          (map (^y ;; binding
-;;                                                 (cond [(not y) (inc! count) #f]
-;;                                                       [(integer? y) y]
-;;                                                       [else
-;;                                                        (rlet1 ix (vector-ref args (car y))
-;;                                                          (unless ix
-;;                                                            (push! return-ix count)
-;;                                                            (inc! count)))]))
-;;                                               x))
-;;                                        (caddr r))])
-;;                             (set! return-ix (reverse! return-ix))
-;;                             ((apply seq% ;; match then type-check
-;;                                     (append!
-;;                                      (map (^c (match-component% c (pop! bindings))) (car r))
-;;                                      (map (^s (type-check% s (pop! bindings))) (cadr r))))
-;;                              :next
-;;                              (lambda% (_ _ newlstack _ _)
-;;                                (let1 lstack-state (stack-length lstack)
-;;                                  ;; 取れた戻り値を lstack に push
-;;                                  (dolist (ix return-ix)
-;;                                    (stack-push! lstack (stack-ref newlstack ix)))
-;;                                  ;; next を呼ぶ
-;;                                  (cond [(next proc known-atoms lstack pstack type-env)
-;;                                         => identity]
-;;                                        [t (stack-pop-until! lstack lstack-state) #f])))
-;;                              proc (atomset-copy known-atoms) newlstack (make-stack))))
-;;                         rules))))))
