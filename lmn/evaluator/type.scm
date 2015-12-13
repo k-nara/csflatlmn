@@ -58,8 +58,6 @@
 ;; をこの順で与える。それぞれは自然数, リストで囲まれた自然数, #f のリ
 ;; ストで、リストで囲まれた自然数は型の引数を表す。
 
-;; ---- type-check%
-
 ;; ---- make-type-rule
 
 ;; ARITY, PATTERNS, SUBGOALS, BINDING-TEMPLATE から型検査を行う (カリー
@@ -116,3 +114,11 @@
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
 (define ((make-type :rest type-rules) args)
   (apply or% (map (^r (r args)) type-rules)))
+
+;; ---- type-check%
+
+(define ((type-check% name args) proc known-atoms lstack pstack type-env)
+  (cond [(hash-table-get type-env name #f)
+         => (^t ((t args) :next next proc known-atoms lstack pstack type-env))]
+        [else
+         (error "call to undefined type")]))
