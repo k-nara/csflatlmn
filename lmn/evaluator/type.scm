@@ -81,6 +81,12 @@
 ;;
 ;; (("[]" 0)) に対する match-component% が２回目に呼ばれたとき、なぜか
 ;; binding が #(3) #(4) に変化している
+;;
+;; match-component% のクロージャを生成する段階で引数の indices が壊れて
+;; いるので、 make-type-rule の binding-template を instantiate してる
+;; 部分に問題がありそうに見える…？
+;;
+;; 再帰呼び出された t に問題がありそうだ。ウーン
 
 ;; ---- 型の例
 
