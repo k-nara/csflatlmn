@@ -90,6 +90,9 @@
 ;; を返した場合、 LSTACK をもとに戻し、別の候補をプッシュし、あらためて
 ;; next を呼び出す。
 (define ((make-type-rule arity patterns subgoals binding-template) args)
+  ;; 引数の数を確認
+  (unless (= arity (vector-length args))
+    (error "(type-check) wrong number of arguments"))
   ;; binding-template の instantiate は静的にやっておく
   (let* ([count 0]
          [return-ix ()]
