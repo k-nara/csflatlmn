@@ -123,8 +123,10 @@
          :next
          (lambda% (_ _ newlstack _ _)
            (let1 lstack-state (stack-length lstack)
-             ;; 見つかったポートを lstack にプッシュして next を呼び出す
-             (dolist (ix return-ix) (stack-push! lstack (stack-ref newlstack ix)))
+             ;; 見つかったポート/引数を lstack にプッシュして next を呼び出す
+             (dolist (ix return-ix)
+               (stack-push! lstack (port-partner (stack-ref newlstack ix)))
+               (stack-push! lstack (stack-ref newlstack ix)))
              (cond [(next proc known-atoms lstack pstack type-env) => identity]
                    [else (stack-pop-until! lstack lstack-state) #f])))
          proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
