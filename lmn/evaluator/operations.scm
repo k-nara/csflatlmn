@@ -108,7 +108,8 @@
          [pat-head-index ;; indices の #f でない適当な要素のインデックス
           (let loop ([ix 0])
             (and (< ix arity)
-                 (or (vector-ref indices ix) (loop (+ ix 1)))))]
+                 (or (and (vector-ref indices ix) ix)
+                     (loop (+ ix 1)))))]
          [pat-head ;; pat の中で、探索の始点にするアトム
           (if pat-head-index
               (port-atom (atomset-port pat pat-head-index))
