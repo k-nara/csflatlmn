@@ -171,7 +171,15 @@
                                                        (push! return-ix count)
                                                        (inc! count)))]))
                                    x))
-                       binding-template)])
+                       binding-template)]
+         [pp (apply seq% (let loop ([patterns patterns] [subgoals subgoals] [binding binding])
+                           (cond [(pair? patterns)
+                                  (cons (match-component% (car patterns) (car binding))
+                                        (loop (cdr patterns) subgoals (cdr binding)))]
+                                 [(pair? subgoals)
+                                  (cons (type-check% (car subgoals) (car binding))
+                                        (loop patterns (cdr subgoals) (cdr binding)))]
+                                 [else ()])))])
     (set! return-ix (reverse! return-ix))
     ;; ここから部分手続き
     (lambda% (proc known-atoms lstack pstack type-env)
@@ -179,24 +187,15 @@
         ;; newlstack に引数を push
         (dotimes (i arity)
           (stack-push! newlstack (if-let1 ix (vector-ref args i) (stack-ref lstack ix) #f)))
-        ((apply seq% (let loop ([patterns patterns] [subgoals subgoals] [binding binding])
-                       (cond [(pair? patterns)
-                              (cons (match-component% (car patterns) (car binding))
-                                    (loop (cdr patterns) subgoals (cdr binding)))]
-                             [(pair? subgoals)
-                              (cons (type-check% (car subgoals) (car binding))
-                                    (loop patterns (cdr subgoals) (cdr binding)))]
-                             [else ()])))
-         :next
-         (lambda% (_ _ newlstack _ _)
-           (let1 lstack-state (stack-length lstack)
-             ;; 見つかったポート/引数を lstack にプッシュして next を呼び出す
-             (dolist (ix return-ix)
-               (stack-push! lstack (port-partner (stack-ref newlstack ix)))
-               (stack-push! lstack (stack-ref newlstack ix)))
-             (cond [(next proc known-atoms lstack pstack type-env) => identity]
-                   [else (stack-pop-until! lstack lstack-state) #f])))
-         proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
+        (pp :next (lambda% (_ _ newlstack _ _)
+                           (let1 lstack-state (stack-length lstack)
+                             ;; 見つかったポート/引数を lstack にプッシュして next を呼び出す
+                             (dolist (ix return-ix)
+                               (stack-push! lstack (port-partner (stack-ref newlstack ix)))
+                               (stack-push! lstack (stack-ref newlstack ix)))
+                             (cond [(next proc known-atoms lstack pstack type-env) => identity]
+                                   [else (stack-pop-until! lstack lstack-state) #f])))
+            proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
