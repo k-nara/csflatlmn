@@ -12,7 +12,7 @@
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが認めるか？
 ;; *NOTE* 組込み型の引数には #f を認めない ("<" 型とかが厄介)
 
-;; *TODO* 深さ優先ではなく、幅優先や反復深化で探索したい
+;; *TODO* 探索深さを制限する引数を追加して反復深化にしてもいいかも？
 ;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 
@@ -58,21 +58,32 @@
 ;; をこの順で与える。それぞれは自然数, リストで囲まれた自然数, #f のリ
 ;; ストで、リストで囲まれた自然数は型の引数を表す。
 
-;; ---- make-type-rule
+;; ---- type-check%
+
+;; ハッシュテーブル TYPE-ENV から型の名前 NAME に対応する型定義のオブジェ
+;; クトを探して、呼び出す。存在しなければエラーを返す。
+(define% ((type-check% name args) proc known-atoms lstack pstack type-env)
+  (cond [(hash-table-get type-env name #f)
+         => (^t ((t args) :next next proc known-atoms lstack pstack type-env))]
+        [else
+         (error "(type-check) call to undefined type")]))
+
+;; ---- make-type-rule, make-type
 
 ;; ARITY, PATTERNS, SUBGOALS, BINDING-TEMPLATE から型検査を行う (カリー
 ;; 化された) 部分手続きを構成する。得られた部分手続きは引数にもとづいて
 ;; 型検査を行い、成功した場合は next を呼び出し、その戻り値を全体の戻り
 ;; 値とする。失敗した場合 #f を返す。 ARGS は長さが ARITY のベクタで、
-;; それぞれの要素は自然数か #f である。 ARGS の第 K 要素が自然数 N の場
-;; 合、第 K ポートが LSTACK の N 番目のポートであるようなプロセス文脈が
-;; 検査対象となる。 #f の場合、検査対象のプロセス文脈の第 K ポートは型
-;; 検査が成功するように適当に選ばれる。選ばれたポートとその引数は、
-;; next を呼び出す前にこの順で LSTACK にプッシュされる。 #f が複数含ま
-;; れる場合、 K の小さい順にプッシュされる。 ARGS に #f が含まれている
-;; とき、型検査が成功するようなポートの候補が複数ある場合がある。まだ候
-;; 補が残っているときに next が #f を返した場合、 LSTACK をもとに戻し、
-;; 別の候補をプッシュし、あらためて next を呼び出す。
+;; それぞれの要素は自然数か #f である。 ARGS の長さが異なる場合、エラー
+;; を返す。 ARGS の第 K 要素が自然数 N の場合、第 K ポートが LSTACK の
+;; N 番目のポートであるようなプロセス文脈が検査対象となる。 #f の場合、
+;; 検査対象のプロセス文脈の第 K ポートは型検査が成功するように適当に選
+;; ばれる。選ばれたポートとその引数は、next を呼び出す前にこの順で
+;; LSTACK にプッシュされる。 #f が複数含まれる場合、 K の小さい順にプッ
+;; シュされる。 ARGS に #f が含まれているとき、型検査が成功するようなポー
+;; トの候補が複数ある場合がある。まだ候補が残っているときに next が #f
+;; を返した場合、 LSTACK をもとに戻し、別の候補をプッシュし、あらためて
+;; next を呼び出す。
 (define ((make-type-rule arity patterns subgoals binding-template) args)
   ;; binding-template の instantiate は静的にやっておく
   (let* ([count 0]
@@ -115,10 +126,4 @@
 (define ((make-type :rest type-rules) args)
   (apply or% (map (^r (r args)) type-rules)))
 
-;; ---- type-check%
 
-(define ((type-check% name args) proc known-atoms lstack pstack type-env)
-  (cond [(hash-table-get type-env name #f)
-         => (^t ((t args) :next next proc known-atoms lstack pstack type-env))]
-        [else
-         (error "call to undefined type")]))
