@@ -1,4 +1,6 @@
 (use gauche.test)
+
+(use lmn.object.atom)
 (use test.util)
 
 (test-start "lmn.object.atomset")

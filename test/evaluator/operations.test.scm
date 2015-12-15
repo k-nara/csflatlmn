@@ -1,4 +1,8 @@
 (use gauche.test)
+
+(use lmn.object.atom)
+(use lmn.object.atomset)
+(use lmn.evaluator.control.stack)
 (use lmn.evaluator.control.pp)
 (use test.util)
 
@@ -146,7 +150,7 @@
   (test* "match success (1)"
          #f (matcher proc1 (make-atomset) (make-stack) (make-stack) #f) boolean-equal?)
   (test* "match success (2)"
-         #t (matcher proc2 (make-atomset) (make-stack) #f) boolean-equal?))
+         #t (matcher proc2 (make-atomset) (make-stack) (make-stack) #f) boolean-equal?))
 
 ;; ----------------------
 
