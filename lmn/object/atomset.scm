@@ -213,7 +213,7 @@
 ;; 場合、その閉路に含まれる任意のアトムを返す。 ATOM が省略された場合、
 ;; SET に含まれる任意のアトムを始点にする。 SET にアトムが存在しない場
 ;; 合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経路中に
-;; ill-formed なアトムが存在する場合、この関数は失敗することがある。
+;; ill-formed なアトムが存在する場合、この関数はエラーを返すことがある。
 (define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
@@ -263,7 +263,7 @@
 ;; 由リンクは整数によってそのポート番号が表現される。局所リンクは自然数
 ;; でないユニークなシンボルで表現される。direct link は２つのポート番号
 ;; を並べたリストとして表現される。この関数は SET がill-formed であれば
-;; 失敗することがある。
+;; エラーを返すことがある。
 (define (atomset->sexp set)
   (let loop ([res ()]
              [pending-ports (make-hash-table 'equal?)]
@@ -282,7 +282,7 @@
                                       [(or (undefined? arg)
                                            (not (atomset-member set arg-atom)))
                                        (or (-atomset-port-index set port)
-                                           (error "unassigned freelink in a process."))]
+                                           (error "(atomset->sexp) unassigned freelink"))]
                                       ;; known internal link
                                       [(hash-table-get pending-ports arg #f)
                                        => identity]
