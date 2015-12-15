@@ -103,8 +103,8 @@
                                                      (unless ix
                                                        (push! return-ix count)
                                                        (inc! count)))]))
-                                   x)
-                           binding-template))])
+                                   x))
+                       binding-template)])
     (set! return-ix (reverse! return-ix))
     ;; ここから部分手続き
     (lambda% (proc known-atoms lstack pstack type-env)
