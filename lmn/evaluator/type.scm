@@ -21,6 +21,67 @@
 ;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 
+;; *FIXME* ユーザー定義型検査をすると必ず stack-boundary error
+;;
+;; match-component% にデバッグプリントを仕込んで走らせた結果：
+;;
+;; <user-defined type (1) simple linear traversing / success>---------------------
+;; test match result, expects #t ==>
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("[]" 0))
+;; #?=indices
+;; #?-    #(0)
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("[]" 0))
+;; #?=indices
+;; #?-    #(1)
+;; #?="match-component% (call)"
+;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
+;; #?-    0
+;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
+;; #?-    2
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("." 0 1 2))
+;; #?=indices
+;; #?-    #(#f #f 0)
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("." 0 1 2))
+;; #?=indices
+;; #?-    #(#f #f 1)
+;; #?="match-component% (call)"
+;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
+;; #?-    0
+;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
+;; #?-    2
+;; #?="match-component% (call)"
+;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
+;; #?-    1
+;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
+;; #?-    4
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("[]" 0))
+;; #?=indices
+;; #?-    #(3)
+;; #?="match-component% (generation)"
+;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
+;; #?-    (("[]" 0))
+;; #?=indices
+;; #?-    #(5)
+;; #?="match-component% (call)"
+;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
+;; #?-    3
+;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
+;; #?-    2
+;; ERROR: GOT #<<error> "Stack boundary error.">
+;;
+;; (("[]" 0)) に対する match-component% が２回目に呼ばれたとき、なぜか
+;; binding が #(3) #(4) に変化している
+
 ;; ---- 型の例
 
 ;; [LMNtal 構文で書かれた型]
