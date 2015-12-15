@@ -1,4 +1,5 @@
 (define-module test.util
+  (use gauche.test)
   (export set-equal? list-equal? boolean-equal? generator->list))
 
 (select-module test.util)
@@ -9,7 +10,7 @@
 
 ;; ２つのオブジェクトの真偽を比較する
 (define (boolean-equal? a b)
-  (if a b (not b)))
+  (if a (not (is-a? b (class-of (test-error)))) (not b)))
 
 ;; イテレータからリストを作る
 (define (generator->list gen)
