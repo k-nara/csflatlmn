@@ -12,6 +12,7 @@
 (use lmn.evaluator.control.stack)
 (use lmn.evaluator.control.pp)
 (use lmn.evaluator.operations)
+(use lmn.evaluator.type)
 
 (load "./test/object/atom.test.scm")
 (load "./test/object/atomset.test.scm")
@@ -20,3 +21,4 @@
 (load "./test/evaluator/control/stack.test.scm")
 (load "./test/evaluator/control/pp.test.scm")
 (load "./test/evaluator/operations.test.scm")
+(load "./test/evaluator/type.test.scm")
