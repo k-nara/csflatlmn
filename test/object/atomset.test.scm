@@ -199,4 +199,4 @@
 
 ;; ----------------------
 
-(test-end :exit-on-failure #t)
+(test-end)

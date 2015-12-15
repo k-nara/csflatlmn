@@ -1,4 +1,5 @@
 (use gauche.test)
+
 (use test.util)
 
 (test-start "lmn.evaluator.control.stack")
@@ -31,4 +32,4 @@
 
 ;; ----------------------
 
-(test-end :exit-on-failure #t)
+(test-end)

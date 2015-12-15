@@ -1,4 +1,5 @@
 (use gauche.test)
+
 (use test.util)
 
 (test-start "lmn.parser.peg")
@@ -11,4 +12,4 @@
 
 ;; ----------------------
 
-(test-end :exit-on-failure #t)
+(test-end)

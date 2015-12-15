@@ -1,4 +1,5 @@
 (use gauche.test)
+
 (use test.util)
 
 (test-start "lmn.object.atom")
@@ -138,4 +139,4 @@
 
 ;; ----------------------
 
-(test-end :exit-on-failure #t)
+(test-end)

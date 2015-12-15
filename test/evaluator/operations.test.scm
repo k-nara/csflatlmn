@@ -445,7 +445,7 @@
 
 ;; ----------------------
 
-(test-end :exit-on-failure #t)
+(test-end)
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
