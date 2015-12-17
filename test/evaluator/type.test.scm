@@ -10,18 +10,22 @@
 
 ;; ----------------------
 
-(test-section "type-subr-link success (1) both ports are specified")
+(test-section "type-subr-link success")
 
 (let ([proc (sexp->atomset '(("a" ("b" L) ("c" L ("d"))) ("e" ("f"))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [env (make-hash-table 'string=?)])
+      [env (make-hash-table 'string=?)]
+      [next-args #f])
   ((match-component% (sexp->atomset '(("a" ("b" 0) ("c" 1 2)))) #(#f #f #f))
    proc known-atoms lstack pstack env)
   (hash-table-put! env "link" type-subr-link)
   (test* "match result"
-         #t ((type-check% "link" #(0 1)) proc known-atoms lstack pstack env) boolean-equal?)
+         #t
+         ((type-check% "link" #(0 1))
+          :next (lambda% x (set! next-args x) #t) proc known-atoms lstack pstack env))
+  (test* "next-args" (list proc known-atoms lstack pstack env) next-args)
   (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("a" "b" "c") (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "lstack" 3 (stack-length lstack))
@@ -29,20 +33,26 @@
 
 ;; ----------------------
 
-(test-section "type-subr-link success (2) a port is unspecified")
+(test-section "type-subr-link failure")
 
 (let ([proc (sexp->atomset '(("a" ("b" L) ("c" L ("d"))) ("e" ("f"))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [env (make-hash-table 'string=?)])
-  ((match-component% (sexp->atomset '(("e" 0))) #(#f))
+      [env (make-hash-table 'string=?)]
+      [next-args #f])
+  ((match-component% (sexp->atomset '(("a" 0 1))) #(#f #f))
    proc known-atoms lstack pstack env)
   (hash-table-put! env "link" type-subr-link)
   (test* "match result"
-         #t ((type-check% "link" #(#f 0)) proc known-atoms lstack pstack env) boolean-equal?)
+         #f
+         ((type-check% "link" #(0 1))
+          :next (lambda% x (set! next-args x) #t) proc known-atoms lstack pstack env))
+  (test* "next-args" #f next-args)
   (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("e") (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "known-atoms" '("a") (atomset-map-atoms atom-name known-atoms))
+  (test* "lstack" 2 (stack-length lstack))
+  (test* "pstack" 1 (stack-length pstack)))
   (test* "lstack (1)" 3 (stack-length lstack))
   (test* "lstack (2)" (stack-ref lstack 0) (stack-ref lstack 2) port=?)
   (test* "lstack (3)" (stack-ref lstack 1) (stack-ref lstack 2) port-connected?)
