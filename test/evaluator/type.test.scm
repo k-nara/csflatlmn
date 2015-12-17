@@ -221,90 +221,81 @@
 
 ;; ----------------------
 
+;; % 同じ長さのリストのペア
+;; typedef t(A, B) {
+;;     '[]'(A), '[]'(B).
+;;     '.'(AH, AT, A), '.'(BH, BT, B) :- t(AT, BT).
+;; }
+
+(define type-same-len-list
+  (make-type (make-type-rule
+              2
+              `(,(sexp->atomset '(("[]" 0))) ,(sexp->atomset '(("[]" 0))))
+              '([(0)] [(1)])
+              ()
+              ())
+             (make-type-rule
+              2
+              `(,(sexp->atomset '(("." 0 1 2))) ,(sexp->atomset '(("." 0 1 2))))
+              '([#f #f (0)] [#f #f (1)])
+              '("t")
+              '([1 3]))))
+
+(define test-env3
+  (rlet1 env (make-hash-table 'string=?)
+    (hash-table-put! env "t" type-same-len-list)))
+
+(test-section "user-defined type (3) simple linear traversing / success")
+
+(let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))
+                             ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
+      [known-atoms (make-atomset)]
+      [lstack (make-stack)]
+      [pstack (make-stack)])
+  ((match-component% (sexp->atomset '(("a" 0))) #(#f))
+   proc known-atoms lstack pstack test-env3)
+  ((match-component% (sexp->atomset '(("b" 0))) #(#f))
+   proc known-atoms lstack pstack test-env3)
+  (test* "match result"
+         #t
+         ((type-check% "t" #(0 1)) proc known-atoms lstack pstack test-env3)
+         boolean-equal?)
+  (test* "proc" '("a" "." "1" "." "2" "." "3" "[]" "b" "." "4" "." "5" "." "6" "[]")
+         (atomset-map-atoms atom-name proc) (set-equal?))
+  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 2 (stack-length lstack))
+  (test* "pstack" 2 (stack-length pstack)))
+
+(test-section "user-defined type (2) simple linear traversing / failure (1)")
+
+(let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("[]"))))
+                             ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
+      [known-atoms (make-atomset)]
+      [lstack (make-stack)]
+      [pstack (make-stack)])
+  ((match-component% (sexp->atomset '(("a" 0))) #(#f))
+   proc known-atoms lstack pstack test-env3)
+  ((match-component% (sexp->atomset '(("b" 0))) #(#f))
+   proc known-atoms lstack pstack test-env3)
+  (test* "match result"
+         #f
+         ((type-check% "t" #(0 1)) proc known-atoms lstack pstack test-env3)
+         boolean-equal?)
+  (test* "proc" '("a" "." "1" "." "2" "[]" "b" "." "4" "." "5" "." "6" "[]")
+         (atomset-map-atoms atom-name proc) (set-equal?))
+  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 2 (stack-length lstack))
+  (test* "pstack" 2 (stack-length pstack)))
+
+;; ----------------------
+
 ;; *TODO*
 ;; 再帰はないがサブゴールのある場合
 ;; わっか a(0, a(1, a(2, a(3, L1))), L1)
 ;; 自己再帰がある場合
 ;; 相互再帰がある場合
 ;; 深いバックトラック
-
-;; ----------------------
-
-;; ;; % 同じ長さのリストのペア
-;; ;; typedef t(A, B) {
-;; ;;     '[]'(A), '[]'(B).
-;; ;;     '.'(AH, AT, A), '.'(BH, BT, B) :- t(AT, BT).
-;; ;; }
-;;
-;; (define type-same-len-list
-;;   (make-type (make-type-rule
-;;               2
-;;               `(,(sexp->atomset '(("[]" 0))) ,(sexp->atomset '(("[]" 0))))
-;;               ()
-;;               '([(0)] [(1)]))
-;;              (make-type-rule
-;;               2
-;;               `(,(sexp->atomset '(("." 0 1 2))) ,(sexp->atomset '(("." 0 1 2))))
-;;               '("t")
-;;               '([#f #f (0)] [#f #f (1)] [1 3]))))
-;;
-;; (test-section "user-defined type (1) simple linear traversing / success")
-;;
-;; ;; (define proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))
-;; ;;                               ("b" ("." ("4") ("." ("5") ("." ("6") ("[]"))))))))
-;; ;; (define known-atoms (make-atomset))
-;; ;; (define lstack (make-stack))
-;; ;; (define pstack (make-stack))
-;; ;; (define env (make-hash-table 'string=?))
-;;
-;; (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))
-;;                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
-;;       [known-atoms (make-atomset)]
-;;       [lstack (make-stack)]
-;;       [pstack (make-stack)]
-;;       [env (make-hash-table 'string=?)])
-;;   ((match-component% (sexp->atomset '(("a" 0))) #(#f))
-;;    proc known-atoms lstack pstack env)
-;;   ((match-component% (sexp->atomset '(("b" 0))) #(#f))
-;;    proc known-atoms lstack pstack env)
-;;   (hash-table-put! env "link" type-subr-link)
-;;   (hash-table-put! env "t" type-same-len-list)
-;;   (test* "match result"
-;;          #t ((type-check% "t" #(0 1)) proc known-atoms lstack pstack env) boolean-equal?)
-;;   (test* "proc" '("a" "." "1" "." "2" "." "3" "[]" "b" "." "4" "." "5" "." "6" "[]")
-;;          (atomset-map-atoms atom-name proc) (set-equal?))
-;;   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-;;   (test* "lstack" 2 (stack-length lstack))
-;;   (test* "pstack" 2 (stack-length pstack)))
-;;
-;; (test-section "user-defined type (2) simple linear traversing / failure (1)")
-;;
-;; ;; (define proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("[]"))))
-;; ;;                               ("b" ("." ("4") ("." ("5") ("." ("6") ("[]"))))))))
-;; ;; (define known-atoms (make-atomset))
-;; ;; (define lstack (make-stack))
-;; ;; (define pstack (make-stack))
-;; ;; (define env (make-hash-table 'string=?))
-;;
-;; (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("[]"))))
-;;                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
-;;       [known-atoms (make-atomset)]
-;;       [lstack (make-stack)]
-;;       [pstack (make-stack)]
-;;       [env (make-hash-table 'string=?)])
-;;   ((match-component% (sexp->atomset '(("a" 0))) #(#f))
-;;    proc known-atoms lstack pstack env)
-;;   ((match-component% (sexp->atomset '(("b" 0))) #(#f))
-;;    proc known-atoms lstack pstack env)
-;;   (hash-table-put! env "link" type-subr-link)
-;;   (hash-table-put! env "t" type-same-len-list)
-;;   (test* "match result"
-;;          #f ((type-check% "t" #(0 1)) proc known-atoms lstack pstack env) boolean-equal?)
-;;   (test* "proc" '("a" "." "1" "." "2" "[]" "b" "." "4" "." "5" "." "6" "[]")
-;;          (atomset-map-atoms atom-name proc) (set-equal?))
-;;   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-;;   (test* "lstack" 2 (stack-length lstack))
-;;   (test* "pstack" 2 (stack-length pstack)))
+;; 文脈の直結
 
 ;; ----------------------
 
