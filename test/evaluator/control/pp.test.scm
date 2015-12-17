@@ -8,8 +8,6 @@
 
 ;; ----------------------
 
-(test-section "basic tests")
-
 (define% (succ% x)
   (next (+ x 1)))
 
@@ -22,6 +20,8 @@
 
 (define% ((great?% threshold) x)
   (next (and (> x threshold) threshold)))
+
+(test-section "basic tests")
 
 (test* "define% (1)" 10 (succ% 9))
 (test* "define% (2)" 55 (sum% 1 2 3 4 5 6 7 8 9 10))

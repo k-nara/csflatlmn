@@ -13,9 +13,9 @@
 
 ;; プロセス文脈型検査を行う手続きを提供する。
 
-;; *NOTE* トラバースと検査を別に行うので同じ文脈に複数の型を付けられる
-;; *NOTE* すべての引数が #f であるような型も実行できることはできるが認めるか？
+;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
 ;; *NOTE* 組込み型の引数には #f を認めない ("<" 型とかが厄介)
+;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (binding-template の制約)
 
 ;; *TODO* 探索深さを制限する引数を追加して反復深化にしてもいいかも？
 ;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
@@ -128,7 +128,8 @@
 ;; patterns はプロセステンプレートのリスト、 subgoals は型名のリスト、
 ;; binding-template はパターンのバインディングとサブゴールの引数リスト
 ;; をこの順で与える。それぞれは自然数, リストで囲まれた自然数, #f のリ
-;; ストで、リストで囲まれた自然数は型の引数を表す。
+;; ストで、リストで囲まれた自然数は型の引数を表す。サブゴールの引数リス
+;; トには #f は現れてはならない。
 
 ;; ---- type-check%
 
@@ -222,3 +223,7 @@
            (lambda% (proc known-atoms lstack pstack type-env)
              (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
                   (next proc known-atoms lstack pstack type-env)))])))
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; End:
