@@ -58,12 +58,12 @@
 
 ;; typedef t1(X, Y) { a(b(X), Y). }
 (define test-type11
-  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) () '([(0) (1)]))))
+  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())))
 
 ;; typedef t2(X, Y) { a(b(X), Y). a(c(X), Y). }
 (define test-type12
-  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) () '([(0) (1)]))
-             (make-type-rule 2 `(,(sexp->atomset '(("a" ("c" 0) 1)))) () '([(0) (1)]))))
+  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())
+             (make-type-rule 2 `(,(sexp->atomset '(("a" ("c" 0) 1)))) '([(0) (1)]) () ())))
 
 (define test-env1
   (rlet1 env (make-hash-table 'string=?)
@@ -128,15 +128,17 @@
 (define test-type21
   (make-type (make-type-rule 2
                              `(,(sexp->atomset '(("a" 0 1))) ,(sexp->atomset '(("b" 0 1))))
+                             '([#f (0)] [#f (1)])
                              '("t2")
-                             '([#f (0)] [#f (1)] [0 1]))))
+                             '([0 1]))))
 
-;; typedef t2(X, Y) { c(X, Y). }
+;; typedef t2(X, Y) { c(Y, X). }
 (define test-type22
   (make-type (make-type-rule 2
                              `(,(sexp->atomset '(("c" 0 1))))
+                             '([(1) (0)])
                              ()
-                             '([(0) (1)]))))
+                             ())))
 
 (define test-env2
   (rlet1 env (make-hash-table 'string=?)
