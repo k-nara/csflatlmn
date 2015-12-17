@@ -211,18 +211,11 @@
   (unless (= 2 (vector-length args))
     (error "(type-check) wrong number of arguments"))
   (let ([arg1 (vector-ref args 0)] [arg2 (vector-ref args 1)])
-    (cond [(not (or arg1 arg2))
-           (error "(type-check) all arguments for the built-in type `link' are undefined")]
-          [(not (and arg1 arg2)) ;; このパターンも違法にしても表現力には影響ない
-           (let1 arg (or arg1 arg2)
-             (lambda% (proc known-atoms lstack pstack type-env)
-               (let1 port (stack-ref lstack arg)
-                 (stack-push! lstack (port-partner port))
-                 (stack-push! lstack port))))]
-          [else
-           (lambda% (proc known-atoms lstack pstack type-env)
-             (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
-                  (next proc known-atoms lstack pstack type-env)))])))
+    (unless (and arg1 arg2)
+      (error "(type-check) some arguments for the built-in type `link' are undefined"))
+    (lambda% (proc known-atoms lstack pstack type-env)
+      (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
+           (next proc known-atoms lstack pstack type-env)))))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
