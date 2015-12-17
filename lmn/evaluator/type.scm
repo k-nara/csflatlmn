@@ -162,7 +162,7 @@
   (unless (= arity (vector-length args))
     (error "(type-check) wrong number of arguments"))
   ;; binding-template の instantiate は静的にやっておく
-  (let* ([count 0]
+  (let* ([count arity]
          [return-ix ()]
          [binding (map (^x (map-to <vector>
                                    (^y (cond [(not y) (inc! count) #f]
