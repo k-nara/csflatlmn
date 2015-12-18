@@ -15,78 +15,13 @@
 
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
 ;; *NOTE* "<" 型などの引数には #f を認めない
-;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (binding-template の制約)
+;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結NG, subgoal-args の制約から)
 
 ;; *TODO* 探索深さを制限する引数を追加して反復深化にしてもいいかも？
 ;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 
-;; *FIXME* ユーザー定義型検査をすると必ず stack-boundary error
-;;
-;; match-component% にデバッグプリントを仕込んで走らせた結果：
-;;
-;; <user-defined type (1) simple linear traversing / success>---------------------
-;; test match result, expects #t ==>
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("[]" 0))
-;; #?=indices
-;; #?-    #(0)
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("[]" 0))
-;; #?=indices
-;; #?-    #(1)
-;; #?="match-component% (call)"
-;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
-;; #?-    0
-;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
-;; #?-    2
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("." 0 1 2))
-;; #?=indices
-;; #?-    #(#f #f 0)
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("." 0 1 2))
-;; #?=indices
-;; #?-    #(#f #f 1)
-;; #?="match-component% (call)"
-;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
-;; #?-    0
-;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
-;; #?-    2
-;; #?="match-component% (call)"
-;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
-;; #?-    1
-;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
-;; #?-    4
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("[]" 0))
-;; #?=indices
-;; #?-    #(3)
-;; #?="match-component% (generation)"
-;; #?="./lmn/evaluator/operations.scm":107:(atomset->sexp pat)
-;; #?-    (("[]" 0))
-;; #?=indices
-;; #?-    #(5)
-;; #?="match-component% (call)"
-;; #?="./lmn/evaluator/operations.scm":127:(vector-ref indices pat-head-index)
-;; #?-    3
-;; #?="./lmn/evaluator/operations.scm":128:(stack-length lstack)
-;; #?-    2
-;; ERROR: GOT #<<error> "Stack boundary error.">
-;;
-;; (("[]" 0)) に対する match-component% が２回目に呼ばれたとき、なぜか
-;; binding が #(3) #(4) に変化している
-;;
-;; match-component% のクロージャを生成する段階で引数の indices が壊れて
-;; いるので、 make-type-rule の binding-template を instantiate してる
-;; 部分に問題がありそうに見える…？
-;;
-;; 再帰呼び出された t に問題がありそうだ。ウーン
+;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
 
 ;; ---- 型の例
 
@@ -133,7 +68,9 @@
 ;; patterns はプロセステンプレートのリスト、 subgoals は型名のリスト、
 ;; pattern-bindings や subgoal-args はそれぞれ自然数 or リストで囲まれ
 ;; た自然数 or #f のリストで、リストで囲まれた自然数は型の引数を表す。
-;; サブゴールの引数リストには #f は現れてはならない。
+;; サブゴールの引数リストには #f は現れてはならない (subgoal-args に
+;; #f を認めると、 lstack に２つづつ push される都合でリンク番号がズレ
+;; てめんどくさい)。
 
 ;; ---- type-check%
 
@@ -147,20 +84,20 @@
 
 ;; ---- make-type-rule, make-type
 
-;; ARITY, PATTERNS, SUBGOALS, BINDING-TEMPLATE から型検査を行う (カリー
-;; 化された) 部分手続きを構成する。得られた部分手続きは引数にもとづいて
-;; 型検査を行い、成功した場合は next を呼び出し、その戻り値を全体の戻り
-;; 値とする。失敗した場合 #f を返す。 ARGS は長さが ARITY のベクタで、
-;; それぞれの要素は自然数か #f である。 ARGS の長さが異なる場合、エラー
-;; を返す。 ARGS の第 K 要素が自然数 N の場合、第 K ポートが LSTACK の
-;; N 番目のポートであるようなプロセス文脈が検査対象となる。 #f の場合、
-;; 検査対象のプロセス文脈の第 K ポートは型検査が成功するように適当に選
-;; ばれる。選ばれたポートとその引数は、next を呼び出す前にこの順で
-;; LSTACK にプッシュされる。 #f が複数含まれる場合、 K の小さい順にプッ
-;; シュされる。 ARGS に #f が含まれているとき、型検査が成功するようなポー
-;; トの候補が複数ある場合がある。まだ候補が残っているときに next が #f
-;; を返した場合、 LSTACK をもとに戻し、別の候補をプッシュし、あらためて
-;; next を呼び出す。
+;; ARITY, PATTERNS, PATTERN-BINDINGS, SUBGOALS, SUBGOAL-ARGS から型検査
+;; を行う (カリー化された) 部分手続きを構成する。得られた部分手続きは引
+;; 数にもとづいて型検査を行い、成功した場合は next を呼び出し、その戻り
+;; 値を全体の戻り値とする。失敗した場合 #f を返す。 ARGS は長さがARITY
+;; のベクタで、それぞれの要素は自然数か #f である。 ARGS の長さが異なる
+;; 場合、エラーを返す。 ARGS の第 K 要素が自然数 N の場合、第 Kポートが
+;; LSTACK のN 番目のポートであるようなプロセス文脈が検査対象となる。
+;; #f の場合、検査対象のプロセス文脈の第 K ポートは型検査が成功するよう
+;; に適当に選ばれる。選ばれたポートとその引数は、next を呼び出す前にこ
+;; の順でLSTACK にプッシュされる。 #f が複数含まれる場合、 K の小さい順
+;; にプッシュされる。 ARGS に #f が含まれているとき、型検査が成功するよ
+;; うなポートの候補が複数ある場合がある。まだ候補が残っているときに
+;; next が #fを返した場合、 LSTACK をもとに戻し、別の候補をプッシュし、
+;; あらためてnext を呼び出す。
 (define ((make-type-rule arity patterns pattern-bindings subgoals subgoal-args) args)
   ;; 引数の数を確認
   (unless (= arity (vector-length args))
