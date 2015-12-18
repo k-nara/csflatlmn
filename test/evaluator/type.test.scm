@@ -289,36 +289,40 @@
                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
-      [pstack (make-stack)])
+      [pstack (make-stack)]
+      [next-args #f])
   ((match-component% (sexp->atomset '(("a" 0))) #(#f))
    proc known-atoms lstack pstack test-env3)
   ((match-component% (sexp->atomset '(("b" 0))) #(#f))
    proc known-atoms lstack pstack test-env3)
   (test* "match result"
          #t
-         ((type-check% "t" #(0 1)) proc known-atoms lstack pstack test-env3)
-         boolean-equal?)
+         ((type-check% "t" #(0 1))
+          :next (lambda% args (set! next-args args) #t) proc known-atoms lstack pstack test-env3))
+  (test* "next-args" (list proc known-atoms lstack pstack test-env3) next-args)
   (test* "proc" '("a" "." "1" "." "2" "." "3" "[]" "b" "." "4" "." "5" "." "6" "[]")
          (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack" 2 (stack-length pstack)))
 
-(test-section "user-defined type (2) simple linear traversing / failure (1)")
+(test-section "user-defined type (3) simple linear traversing / failure")
 
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("[]"))))
                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
-      [pstack (make-stack)])
+      [pstack (make-stack)]
+      [next-args #f])
   ((match-component% (sexp->atomset '(("a" 0))) #(#f))
    proc known-atoms lstack pstack test-env3)
   ((match-component% (sexp->atomset '(("b" 0))) #(#f))
    proc known-atoms lstack pstack test-env3)
   (test* "match result"
          #f
-         ((type-check% "t" #(0 1)) proc known-atoms lstack pstack test-env3)
-         boolean-equal?)
+         ((type-check% "t" #(0 1))
+          :next (lambda% args (set! next-args args) #t) proc known-atoms lstack pstack test-env3))
+  (test* "next-args" #f next-args)
   (test* "proc" '("a" "." "1" "." "2" "[]" "b" "." "4" "." "5" "." "6" "[]")
          (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
