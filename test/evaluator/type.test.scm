@@ -331,6 +331,51 @@
 
 ;; ----------------------
 
+(test-section "user-defined type (4) simple linear traversing / backtrack (1)")
+
+;; % 差分リスト
+;; typedef t(H, T) {
+;;     H = T.
+;;     '.'(Car, Cdr, H) :- t(Cdr, T).
+;; }
+
+(define type-dlist
+  (make-type (make-type-rule
+              2
+              ()
+              ()
+              '("link")
+              '([(0) (1)]))
+             (make-type-rule
+              2
+              `(,(sexp->atomset '(("." 0 1 2))))
+              '([#f #f (0)])
+              '("t")
+              '([1 (1)]))))
+
+(define test-env3
+  (rlet1 env (make-hash-table 'string=?)
+    (hash-table-put! env "t" type-dlist)
+    (hash-table-put! env "link" type-subr-link)))
+
+(let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))))]
+      [known-atoms (make-atomset)]
+      [lstack (make-stack)]
+      [pstack (make-stack)]
+      [next-args #f]
+      [found-conses #f])
+  ((match-component% (sexp->atomset '(("a" 0))) #(#f))
+   proc known-atoms lstack pstack test-env3)
+  (test* "match result"
+         #f
+         ((seq% (type-check% "t" #(0 #f))
+                (lambda% (_ _ _ _ _)
+                  (push! found-conses (atom-name (port-atom (stack-ref lstack 2))))
+                  #f))
+          proc known-atoms lstack pstack test-env3)))
+
+;; ----------------------
+
 ;; *TODO*
 ;; 再帰はないがサブゴールのある場合
 ;; わっか a(0, a(1, a(2, a(3, L1))), L1)
@@ -338,6 +383,8 @@
 ;; 相互再帰がある場合
 ;; 深いバックトラック
 ;; 文脈の直結
+
+;; next-args は毎回チェックする必要はなさそう
 
 ;; ----------------------
 
