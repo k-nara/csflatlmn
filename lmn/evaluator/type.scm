@@ -14,7 +14,7 @@
 ;; プロセス文脈型検査を行う手続きを提供する。
 
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
-;; *NOTE* 組込み型の引数には #f を認めない ("<" 型とかが厄介)
+;; *NOTE* "<" 型などの引数には #f を認めない
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (binding-template の制約)
 
 ;; *TODO* 探索深さを制限する引数を追加して反復深化にしてもいいかも？
@@ -218,11 +218,19 @@
   (unless (= 2 (vector-length args))
     (error "(type-check) wrong number of arguments"))
   (let ([arg1 (vector-ref args 0)] [arg2 (vector-ref args 1)])
-    (unless (and arg1 arg2)
-      (error "(type-check) some arguments for the built-in type `link' are undefined"))
-    (lambda% (proc known-atoms lstack pstack type-env)
-      (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
-           (next proc known-atoms lstack pstack type-env)))))
+    (cond [(and arg1 arg2)
+           (lambda% (proc known-atoms lstack pstack type-env)
+             (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
+                  (next proc known-atoms lstack pstack type-env)))]
+          [(or arg1 arg2)
+           => (^a (lambda% (proc known-atoms lstack pstack type-env)
+                    (let1 port (stack-ref lstack a)
+                      (stack-push! lstack (port-partner port))
+                      (stack-push! lstack port))
+                    (or (next proc known-atoms lstack pstack type-env)
+                        (begin (stack-pop! lstack 2) #f))))]
+          [else
+           (error "(type-check) all arguments for built-in type `link' are unspecified")])))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
