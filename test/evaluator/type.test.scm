@@ -96,12 +96,14 @@
 
 ;; typedef t1(X, Y) { a(b(X), Y). }
 (define test-type11
-  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())))
+  (make-type
+   (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())))
 
 ;; typedef t2(X, Y) { a(b(X), Y). a(c(X), Y). }
 (define test-type12
-  (make-type (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())
-             (make-type-rule 2 `(,(sexp->atomset '(("a" ("c" 0) 1)))) '([(0) (1)]) () ())))
+  (make-type
+   (make-type-rule 2 `(,(sexp->atomset '(("a" ("b" 0) 1)))) '([(0) (1)]) () ())
+   (make-type-rule 2 `(,(sexp->atomset '(("a" ("c" 0) 1)))) '([(0) (1)]) () ())))
 
 (define test-env1
   (rlet1 env (make-hash-table 'string=?)
@@ -164,19 +166,16 @@
 
 ;; typedef t1(X, Y) { a(L1 X), b(L2, Y) :- t2(L1, L2). }
 (define test-type21
-  (make-type (make-type-rule 2
-                             `(,(sexp->atomset '(("a" 0 1))) ,(sexp->atomset '(("b" 0 1))))
-                             '([#f (0)] [#f (1)])
-                             '("t2")
-                             '([0 1]))))
+  (make-type
+   (make-type-rule 2
+                   `(,(sexp->atomset '(("a" 0 1))) ,(sexp->atomset '(("b" 0 1))))
+                   '([#f (0)] [#f (1)])
+                   '("t2")
+                   '([0 1]))))
 
 ;; typedef t2(X, Y) { c(Y, X). }
 (define test-type22
-  (make-type (make-type-rule 2
-                             `(,(sexp->atomset '(("c" 0 1))))
-                             '([(1) (0)])
-                             ()
-                             ())))
+  (make-type (make-type-rule 2 `(,(sexp->atomset '(("c" 0 1)))) '([(1) (0)]) () ())))
 
 (define test-env2
   (rlet1 env (make-hash-table 'string=?)
@@ -266,24 +265,22 @@
 ;; }
 
 (define type-same-len-list
-  (make-type (make-type-rule
-              2
-              `(,(sexp->atomset '(("[]" 0))) ,(sexp->atomset '(("[]" 0))))
-              '([(0)] [(1)])
-              ()
-              ())
-             (make-type-rule
-              2
-              `(,(sexp->atomset '(("." 0 1 2))) ,(sexp->atomset '(("." 0 1 2))))
-              '([#f #f (0)] [#f #f (1)])
-              '("t")
-              '([1 3]))))
+  (make-type
+   (make-type-rule 2
+                   `(,(sexp->atomset '(("[]" 0))) ,(sexp->atomset '(("[]" 0))))
+                   '([(0)] [(1)])
+                   () ())
+   (make-type-rule 2
+                   `(,(sexp->atomset '(("." 0 1 2))) ,(sexp->atomset '(("." 0 1 2))))
+                   '([#f #f (0)] [#f #f (1)])
+                   '("t")
+                   '([1 3]))))
 
 (define test-env3
   (rlet1 env (make-hash-table 'string=?)
     (hash-table-put! env "t" type-same-len-list)))
 
-(test-section "user-defined type (3) simple linear traversing / success")
+(test-section "user-defined type (3) simple self recursion / success")
 
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))
                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
@@ -306,7 +303,7 @@
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack" 2 (stack-length pstack)))
 
-(test-section "user-defined type (3) simple linear traversing / failure")
+(test-section "user-defined type (3) simple self recursion / failure")
 
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("[]"))))
                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
@@ -331,8 +328,6 @@
 
 ;; ----------------------
 
-(test-section "user-defined type (4) simple linear traversing / backtrack (1)")
-
 ;; % 差分リスト
 ;; typedef t(H, T) {
 ;;     H = T.
@@ -340,50 +335,167 @@
 ;; }
 
 (define type-dlist
-  (make-type (make-type-rule
-              2
-              ()
-              ()
-              '("link")
-              '([(0) (1)]))
-             (make-type-rule
-              2
-              `(,(sexp->atomset '(("." 0 1 2))))
-              '([#f #f (0)])
-              '("t")
-              '([1 (1)]))))
+  (make-type
+   (make-type-rule 2 () () '("link") '([(0) (1)]))
+   (make-type-rule 2 `(,(sexp->atomset '(("." 0 1 2)))) '([#f #f (0)]) '("t") '([1 (1)]))))
 
 (define test-env3
   (rlet1 env (make-hash-table 'string=?)
     (hash-table-put! env "t" type-dlist)
     (hash-table-put! env "link" type-subr-link)))
 
+(test-section "user-defined type (4) simple linear search")
+
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [next-args #f]
-      [found-conses #f])
+      [found-conses ()])
+  ;; "a($x['.'(Car, Cdr)]) | dlist($x)" なプロセスを、$x の短いものから
+  ;; 順に探索
   ((match-component% (sexp->atomset '(("a" 0))) #(#f))
    proc known-atoms lstack pstack test-env3)
   (test* "match result"
          #f
          ((seq% (type-check% "t" #(0 #f))
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 2))
                 (lambda% (_ _ _ _ _)
-                  (push! found-conses (atom-name (port-atom (stack-ref lstack 2))))
+                  (push! found-conses (atom-name (port-atom (stack-ref lstack 3))))
                   #f))
-          proc known-atoms lstack pstack test-env3)))
+          proc known-atoms lstack pstack test-env3))
+  (test* "found conses" '("3" "2" "1") found-conses)
+  (test* "proc" '("a" "." "1" "." "2" "." "3" "[]")
+         (atomset-map-atoms atom-name proc) (set-equal?))
+  (test* "known-atoms" '("a") (atomset-map-atoms atom-name known-atoms))
+  (test* "lstack" 1 (stack-length lstack))
+  (test* "pstack" 1 (stack-length pstack)))
+
+(test-section "user-defined type (4) nested linear search")
+
+(let1 proc
+    (sexp->atomset
+     '(("a" ("." ("4") ("." ("7") ("." ("2") ("." ("3") ("." ("8") ("." ("2") ("[]"))))))))))
+  ;; 数のリストから、積が１６になるようなペアを探す
+  (test* "search result"
+         '(2 . 8)
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f)) ;; l0
+                (type-check% "t" #(0 #f)) ;; l1/l2
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 2)) ;; l3, l4
+                (type-check% "t" #(4 #f)) ;; l5/l6
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 6)) ;;l7, l8
+                (lambda% (_ _ lstack _ _)
+                  (let ([n1 (string->number (atom-name (port-atom (stack-ref lstack 3))))]
+                        [n2 (string->number (atom-name (port-atom (stack-ref lstack 7))))])
+                    (and (= (* n1 n2) 16) (cons n1 n2)))))
+          proc (make-atomset) (make-stack) (make-stack) test-env3)))
+
+;; ----------------------
+
+(test-section "user-defined type (5) complex tree search")
+
+;; % a を２つ含む二分木
+;; typedef t2(H) {
+;;     H= b(L, R) :- t2(L), t0(R).
+;;     H= b(L, R) :- t1(L), t1(R).
+;;     H= b(L, R) :- t0(L), t2(R).
+;;     H= a(L, R) :- t1(L), t0(R).
+;;     H= a(L, R) :- t0(L), t1(R).
+;; }
+;; typedef t1(H) {
+;;     H= b(L, R) :- t1(L), t0(R).
+;;     H= b(L, R) :- t0(L), t1(R).
+;;     H= a(L, R) :- t0(L), t0(R).
+;; }
+;; typedef t0(H) {
+;;     H= x.
+;;     H= b(L, R) :- t0(L), t0(R).
+;; }
+
+(define type-t2
+  (make-type
+   (make-type-rule
+    1 `(,(sexp->atomset '(("b" 0 1 2)))) '([#f #f (0)]) '("t2" "t0") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("b" 0 1 2)))) '([#f #f (0)]) '("t1" "t1") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("b" 0 1 2)))) '([#f #f (0)]) '("t0" "t2") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("a" 0 1 2)))) '([#f #f (0)]) '("t1" "t0") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("a" 0 1 2)))) '([#f #f (0)]) '("t0" "t1") '([0] [1]))))
+
+(define type-t1
+  (make-type
+   (make-type-rule
+    1 `(,(sexp->atomset '(("b" 0 1 2)))) '([#f #f (0)]) '("t1" "t0") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("b" 0 1 2)))) '([#f #f (0)]) '("t0" "t1") '([0] [1]))
+   (make-type-rule
+    1 `(,(sexp->atomset '(("a" 0 1 2)))) '([#f #f (0)]) '("t0" "t0") '([0] [1]))))
+
+(define type-t0
+  (make-type
+   (make-type-rule
+    1 `(,(sexp->atomset '(("x" 0)))) '([(0)]) () ())
+   (make-type-rule
+    1 `(,(sexp->atomset '(("a" 0 1 2)))) '([#f #f (0)]) '("t0" "t0") '([0] [1]))))
+
+(define test-env4
+  (rlet1 env (make-hash-table 'string=?)
+    (hash-table-put! env "t0" type-t0)
+    (hash-table-put! env "t1" type-t1)
+    (hash-table-put! env "t2" type-t2)))
+
+(let ([p1 (sexp->atomset
+           '(("t" ("b" ("b" ("b" ("a" ("x") ("x")) ("x")) ("a" ("x") ("x"))) ("x")))))]
+      [p2 (sexp->atomset
+           '(("t" ("b" ("b" ("b" ("b" ("x") ("x")) ("x")) ("a" ("x") ("x"))) ("x")))))]
+      [matcher (seq% (match-component% (sexp->atomset '(("t" 0))) #(#f))
+                     (type-check% "t2" #(0)))])
+  (test* "match result (success)"
+         #t (matcher p1 (make-atomset) (make-stack) (make-stack) test-env4) boolean-equal?)
+  (test* "match result (failure)"
+         #f (matcher p2 (make-atomset) (make-stack) (make-stack) test-env4)))
+
+;; ----------------------
+
+(test-section "user-defined type (5) mutually recursive types")
+
+;; a から始まって、 a, b が交互にいくつか並んだあと、 b で終わる紐
+;; typedef a(H, T) { H= a(H2) :- b(H2, T). }
+;; typedef b(H, T) { H= b(T) . H= b(H2) :- a(H2, T). }
+
+(define type-a
+  (make-type
+   (make-type-rule 2 `(,(sexp->atomset '(("a" 0 1)))) '([#f (0)]) '("b") '([0 (1)]))))
+
+(define type-b
+  (make-type
+   (make-type-rule 2 `(,(sexp->atomset '(("b" 0 1)))) '([(0) (1)]) () ())
+   (make-type-rule 2 `(,(sexp->atomset '(("b" 0 1)))) '([#f (0)]) '("a") '([0 (1)]))))
+
+(define test-env5
+  (rlet1 env (make-hash-table 'string=?)
+    (hash-table-put! env "b" type-a)
+    (hash-table-put! env "a" type-b)))
+
+(let ([p1 (sexp->atomset '(("x" ("a" ("b" ("a" ("b" ("a" ("b" ("a" ("b" ("y"))))))))))))]
+      [p2 (sexp->atomset '(("x" ("a" ("b" ("a" ("a" ("a" ("b" ("a" ("b" ("y"))))))))))))]
+      [p3 (sexp->atomset '(("x" ("a" ("b" ("a" ("a" ("a" ("b" ("a" ("a" ("y"))))))))))))]
+      [matcher (seq% (match-component% (sexp->atomset '(("x" 0))) #(#f))
+                     (match-component% (sexp->atomset '(("y" 0))) #(#f))
+                     (type-check% "a" #(0 1)))])
+  (test* "match result (success)"
+         #t (matcher p1 (make-atomset) (make-stack) (make-stack) test-env5) boolean-equal?)
+  (test* "match result (failure 1)"
+         #f (matcher p2 (make-atomset) (make-stack) (make-stack) test-env5))
+  (test* "match result (failure 1)"
+         #f (matcher p3 (make-atomset) (make-stack) (make-stack) test-env5)))
 
 ;; ----------------------
 
 ;; *TODO*
-;; 再帰はないがサブゴールのある場合
 ;; わっか a(0, a(1, a(2, a(3, L1))), L1)
-;; 自己再帰がある場合
-;; 相互再帰がある場合
-;; 深いバックトラック
-;; 文脈の直結
-
 ;; next-args は毎回チェックする必要はなさそう
 
 ;; ----------------------
