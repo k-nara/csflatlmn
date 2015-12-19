@@ -509,7 +509,7 @@
          #t (matcher p1 (make-atomset) (make-stack) (make-stack) test-env5) boolean-equal?)
   (test* "match result (failure 1)"
          #f (matcher p2 (make-atomset) (make-stack) (make-stack) test-env5))
-  (test* "match result (failure 1)"
+  (test* "match result (failure 2)"
          #f (matcher p3 (make-atomset) (make-stack) (make-stack) test-env5)))
 
 ;; ----------------------
