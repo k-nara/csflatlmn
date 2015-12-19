@@ -389,6 +389,26 @@
                     (and (= (* n1 n2) 16) (cons n1 n2)))))
           proc (make-atomset) (make-stack) (make-stack) test-env3)))
 
+(test-section "user-defined type (4) linear search for circular graph")
+
+(let ([proc
+       (sexp->atomset
+        '(("." ("4") ("." ("7") ("." ("2") ("." ("3") ("." ("8") ("." ("2") L0))))) L0)))]
+      [found-results ()])
+  (test* "return value"
+         #f
+         ((seq% (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f #f)) ;; l0, l1, l2
+                (type-check% "t" #(1 #f)) ;; l3/l4
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 4)) ;; l5, l6
+                (lambda% (_ _ lstack _ _)
+                  (let ([n1 (string->number (atom-name (port-atom (stack-ref lstack 0))))]
+                        [n2 (string->number (atom-name (port-atom (stack-ref lstack 5))))])
+                    (when (= (* n1 n2) 16)
+                      (push! found-results (cons n1 n2)))
+                    #f)))
+          proc (make-atomset) (make-stack) (make-stack) test-env3))
+  (test* "search result" '((2 . 8) (8 . 2)) found-results (set-equal?)))
+
 ;; ----------------------
 
 (test-section "user-defined type (5) complex tree search")
@@ -491,12 +511,6 @@
          #f (matcher p2 (make-atomset) (make-stack) (make-stack) test-env5))
   (test* "match result (failure 1)"
          #f (matcher p3 (make-atomset) (make-stack) (make-stack) test-env5)))
-
-;; ----------------------
-
-;; *TODO*
-;; わっか a(0, a(1, a(2, a(3, L1))), L1)
-;; next-args は毎回チェックする必要はなさそう
 
 ;; ----------------------
 
