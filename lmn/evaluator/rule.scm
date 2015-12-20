@@ -1,8 +1,5 @@
 ;; *WIP*
 
-;; - instantiate中にリンクが作られるパターンの例も書いておく
-;; - instantiate 時のテンプレートはやっぱりS式でいい (depp-copy 時にどうせS式になる)
-
 (define-module lmn.evaluator.rule
   (use lmn.operations)
   (export ))
@@ -35,13 +32,9 @@
 ;;                                        guards: ("<" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: template{
-;;                                                            p6
-;;                                                 processes: (sexp->atomset '(("d" 0)))
-;;                                                 pattern: (6 3) (5 1) (5 2)
-;;                                                 ;; -> instantiate 後、 p3, p4, p5 が削除
-;;                                                 ;;    (最も内側の rule で作られた proc)
-;;                                             }
+;;                                        rhs: ("d" 3) (5 1) (5 2)
+;;                                             ;; -> instantiate 後、 p3, p4, p5 が削除
+;;                                             ;;    (最も内側の rule で作られた proc)
 ;;                                    }
 ;;                       },
 ;;                       rule{         p3
@@ -51,11 +44,7 @@
 ;;                                        guards: (">" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: template{
-;;                                                            p6
-;;                                                 processes: (sexp->atomset '(("e" 0)))
-;;                                                 pattern: (6 3) (4 1) (4 2)
-;;                                             }
+;;                                        rhs: ("e" 3) (4 1) (4 2)
 ;;                                    }
 ;;                       }
 ;;              }
@@ -80,15 +69,13 @@
 ;;                     (or% (seq% (type-check% "<" #(1 2))
 ;;                                (traverse-context% #(1))
 ;;                                (traverse-context% #(2))
-;;                                (push-template% (sexp->atomset '(("d" 0))))
-;;                                (instantiate-rhs% '((6 5) (5 1) (5 2)))
+;;                                (instantiate-process% '(("d" 5) (5 1) (5 2)))
 ;;                                (remove-processes% '(3 4 5)))))
 ;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
 ;;                     (or% (seq% (type-check% ">" #(1 2))
 ;;                                (traverse-context% #(1))
 ;;                                (traverse-context% #(2))
-;;                                (push-template% (sexp->atomset '(("e" 0))))
-;;                                (instantiate-rhs% '((6 3) (4 1) (4 2)))
+;;                                (instantiate-process% '(("e" 3) (4 1) (4 2)))
 ;;                                (remove-processes% '(3 4 5)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
@@ -129,14 +116,8 @@
 ;;                                        guards:
 ;;                                                  p5  p6
 ;;                                        contexts: (6) (8)
-;;                                        rhs: template{
-;;                                                            p7
-;;                                                 processes: (sexp->atomset '((0 1)))
-;;                                                            p8
-;;                                                            (sexp->atomset '((0 1)))
-;;                                                 pattern: (7 2 7) (8 4 9)
-;;                                                 ; -> p3, p4, p5, p6 が削除される
-;;                                             }
+;;                                        rhs: ("=" 2 7) ("=" 4 9)
+;;                                             ; -> p3, p4, p5, p6 が削除される
 ;;                                    }
 ;;                       }
 ;;              }
@@ -154,9 +135,7 @@
 ;;                     (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
 ;;                     (or% (seq% (traverse-context% #(6))
 ;;                                (traverse-context% #(8))
-;;                                (push-process% (sexp->atomset '((0 1))))
-;;                                (push-process% (sexp->atomset '((0 1))))
-;;                                (instantiate-rhs% '((7 2 7) (8 4 9)))
+;;                                (instantiate-process% '(("=" 2 7) ("=" 4 9)))
 ;;                                (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
@@ -176,11 +155,7 @@
 ;;     clauses: clause{
 ;;                  guards:   p2
 ;;                  contexts: (0 1)
-;;                  rhs: template{      p3                         p4
-;;                           processes: (sexp->atomset '(("c" 0))) (sexp->atomset '(("d" 0)))
-;;                                       l2       l3
-;;                           pattern: (3 #f) (2 2 #f) (4 3)
-;;                       }
+;;                  rhs: ("c" #f) (2 2 #f) ("d" 3)
 ;;              }
 ;; }
 
@@ -190,7 +165,5 @@
 ;;       (match-component% (sexp->atomset '(("b" 0))) #(#f))
 ;;       (or% ;; clauses
 ;;         (seq% (traverse-context% #(0 1))
-;;               (push-process% (sexp->atomset '(("c" 0))))
-;;               (push-process% (sexp->atomset '(("d" 0))))
-;;               (instantiate-rhs% '((3 #f) (2 2 #f) (4 3)))
+;;               (instantiate-process% '(("c" #f) (2 2 #f) ("d" 3)))
 ;;               (remove-processes% '(0 1 2)))))

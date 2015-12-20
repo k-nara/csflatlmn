@@ -1,3 +1,5 @@
+;; *WIP* instantiate-process% を実装する
+
 (define-module lmn.evaluator.operations
   (use lmn.util)
   (use lmn.object.atom)
@@ -37,6 +39,10 @@
   (dolist (ix indices)
     (atomset-map-atoms (^a (atomset-remove-atom! proc a)) (stack-ref pstack ix)))
   (next proc known-atoms lstack pstack type-env))
+
+;; ;; ---- instantiate-process%
+;;
+;; (define% ((instantiate-process% )))
 
 ;; ---- match-component%
 
