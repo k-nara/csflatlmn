@@ -1,7 +1,7 @@
 ;; *WIP*
 
 ;; - instantiate中にリンクが作られるパターンの例も書いておく
-;; - やっぱ type-env も引き回す必要がありそう
+;; - instantiate 時のテンプレートはやっぱりS式でいい (depp-copy 時にどうせS式になる)
 
 (define-module lmn.evaluator.rule
   (use lmn.operations)

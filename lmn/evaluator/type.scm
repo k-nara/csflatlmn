@@ -19,6 +19,8 @@
 ;; *NOTE* 探索深さを制限する引数を追加すれば反復深化にすることもできる (必要があるか？)
 
 ;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
+;;        -> type-rule の作成時に eager に type-check% を呼んでいるのが問題
+;;           (型名の束縛を動的にするならこれはおそらく仕方ない)
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 
 ;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
@@ -82,7 +84,7 @@
         [else
          (error "(type-check) call to undefined type")]))
 
-;; ---- make-type-rule, make-type
+;; ---- make-type
 
 ;; ARITY, PATTERNS, PATTERN-BINDINGS, SUBGOALS, SUBGOAL-ARGS から型検査
 ;; を行う (カリー化された) 部分手続きを構成する。得られた部分手続きは引
