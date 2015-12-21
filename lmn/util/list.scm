@@ -1,24 +1,7 @@
-(define-module lmn.util
+(define-module lmn.util.list
   (export *debug* *debug-level* dump delete1! alist-delete1!))
 
-(select-module lmn.util)
-
-(define *debug* #f)
-(define *debug-level* '(0))
-
-;; もし *debug* が #f でないなら、デバッグメッセージを出力する。 デバッ
-;; グメッセージの次の行のインデントは整数 DLEVEL のぶんだけ深くなる。
-;; ARGS は表示するオブジェクトの列。 STACKING が 'push の場合、現在のイ
-;; ンデントレベルをスタックにプッシュする。 'pop の場合、前回プッシュさ
-;; れたインデントレベルに戻す。
-(define (dump dlevel stacking :rest args)
-  (when *debug*
-    (apply print (append (make-list (max (car *debug-level*) 0) " | ") (map x->string args)))
-    (case stacking
-      [(push) (push! *debug-level* (car *debug-level*))]
-      [(pop) (pop! *debug-level*)])
-    (inc! (car *debug-level*) dlevel)
-    (flush)))
+(select-module lmn.util.list)
 
 ;; "delete!" に似ているが、多くとも１つの要素しか削除しない。重複のない
 ;; リストではリストを最後まで走査しないぶん "delete!" よりも高速。

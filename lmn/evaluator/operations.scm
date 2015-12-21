@@ -1,7 +1,7 @@
 ;; *WIP* instantiate-process% を実装する
 
 (define-module lmn.evaluator.operations
-  (use lmn.util)
+  (use lmn.util.list)
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.object.process)

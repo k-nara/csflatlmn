@@ -2,7 +2,7 @@
 
 (add-load-path ".")
 
-(use lmn.util)
+(use lmn.util.debug)
 (set! *debug* #t)
 
 (use lmn.object.atom)

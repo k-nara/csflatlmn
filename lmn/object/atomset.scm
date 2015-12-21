@@ -1,6 +1,6 @@
 (define-module lmn.object.atomset
   (use gauche.collection)
-  (use lmn.util)
+  (use lmn.util.list)
   (use lmn.object.atom)
   (export <atomset> make-atomset atomset-arity atomset-set-port! atomset-port
           atomset-arg atomset-set-arg! atomset-add-direct-link!
