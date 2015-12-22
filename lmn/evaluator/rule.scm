@@ -1,5 +1,8 @@
 ;; *WIP*
 
+;; next を (commit) #f にして書き換えルーチンを呼べば書き換わったことを
+;; 検知できたりするので、ルール全体も pp であるべき
+
 (define-module lmn.evaluator.rule
   (use lmn.operations)
   (export ))

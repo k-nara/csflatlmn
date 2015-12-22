@@ -1,3 +1,7 @@
+;; *WIP* イテレータ破壊問題を解決する必要がある
+
+;; ファンクタを指定しない atomset-get-iterator は諦めても問題なさそう
+
 (define-module lmn.object.atomset
   (use gauche.collection)
   (use lmn.util.list)
