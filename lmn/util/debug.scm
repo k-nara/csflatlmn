@@ -3,6 +3,8 @@
 
 (select-module lmn.util.debug)
 
+;; プリントデバッグ用の関数を提供する。
+
 (define *debug* #f)
 (define *debug-level* '(0))
 
