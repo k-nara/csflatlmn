@@ -3,6 +3,8 @@
 
 (select-module lmn.util.list)
 
+;; いくつかのリスト操作関数を提供する。
+
 ;; "delete!" に似ているが、多くとも１つの要素しか削除しない。重複のない
 ;; リストではリストを最後まで走査しないぶん "delete!" よりも高速。
 (define (delete1! x lst :optional [elt=? equal?])
