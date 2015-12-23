@@ -1,4 +1,4 @@
-;; *WIP* instantiate-process% を実装する
+;; *WIP* instantiate-process% が未実装
 
 (define-module lmn.evaluator.operations
   (use lmn.util.list)
