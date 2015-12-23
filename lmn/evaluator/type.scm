@@ -18,12 +18,14 @@
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結NG, subgoal-args の制約から)
 ;; *NOTE* 探索深さを制限する引数を追加すれば反復深化にすることもできる (必要があるか？)
 
-;; *TODO* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
+;; *NOTE* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
 ;;        -> type-rule の作成時に eager に type-check% を呼んでいるのが問題
-;;           (型名の束縛を動的にするならこれはおそらく仕方ない)
+;;           相互再帰的な型を認めるのに型名の動的束縛が一番お手軽なので仕方ないかも
+
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 
 ;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
+;;         -> known-atoms を atomset の stack にするのが手ごろか？
 
 ;; ---- 型の例
 
