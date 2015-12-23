@@ -1,7 +1,5 @@
 ;; *WIP* イテレータ破壊問題を解決する必要がある
 
-;; ファンクタを指定しない atomset-get-iterator は諦めても問題なさそう
-
 (define-module lmn.object.atomset
   (use gauche.collection)
   (use lmn.util.list)
@@ -168,33 +166,29 @@
         [else
          ()]))
 
-;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合は
-;; 任意の) アトムを順に返すジェネレータを作る。このジェネレータはすべて
-;; のアトムを走査し終えると #f を返す。 SET に破壊的な変更が加わった場
-;; 合、その変更が加わる前に作成されたジェネレータのそれ以降の挙動は信頼
-;; できない。
-(define (atomset-get-iterator set :optional [functor #f])
-  (cond [(not functor)
-         (with-iterator [(slot-ref set 'atoms) atomset-end? atomset-next]
-           (let ([end? (lambda () #t)] [next #f])
-             (rec (loop)
-               (cond [(not (end?)) (car (next))]
-                     [(atomset-end?) #f]
-                     [else (with-iterator ((cdr (atomset-next)) e? n)
-                             (set! end? e?)
-                             (set! next n))
-                           (loop)]))))]
-        [(hash-table-get (slot-ref set 'atoms) functor #f) =>
-         (lambda (hash)
-           (with-iterator (hash end? next)
-             (lambda () (if (end?) #f (car (next))))))]
-        [else
-         (lambda () #f)]))
+;; SET に含まれる、ファンクタが FUNCTOR であるようなアトムを順に返すジェ
+;; ネレータを作る。このジェネレータはすべてのアトムを走査し終えると #f
+;; を返す。 SET に破壊的な変更が加わった場合、その変更が加わる前に作成
+;; されたジェネレータのそれ以降の挙動は信頼できない。
+(define (atomset-get-iterator set functor)
+  (if-let1 hash (hash-table-get (slot-ref set 'atoms) functor #f)
+    (with-iterator [hash end? next]
+      (lambda () (if (end?) #f (car (next)))))
+    (lambda () #f)))
 
 ;; SET に含まれる、ファンクタが FUNCTOR であるような適当なアトムを一つ
 ;; 取得する。
 (define (atomset-find-atom set :optional [functor #f] [fallback #f])
-  (or ((atomset-get-iterator set functor)) fallback))
+  (cond [functor
+         (or ((atomset-get-iterator set functor))
+             fallback)]
+        [else
+         (with-iterator [(slot-ref set 'atoms) end? next]
+           (let loop ()
+             (if (end?) #f
+                 (or (with-iterator [(cdr (next)) e? n]
+                       (and (not (e?)) (car (n))))
+                     (loop)))))]))
 
 ;; ---- utilities
 
@@ -218,7 +212,7 @@
 ;; SET に含まれる任意のアトムを始点にする。 SET にアトムが存在しない場
 ;; 合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経路中に
 ;; ill-formed なアトムが存在する場合、この関数はエラーを返すことがある。
-(define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
+(define (atomset-head set :optional [atom (atomset-find-atom)] [fallback #f])
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
       (let loop ([atom atom] [known-atoms (make-atomset)])
