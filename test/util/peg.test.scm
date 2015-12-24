@@ -2,9 +2,9 @@
 
 (use test.util)
 
-(test-start "lmn.parser.peg")
+(test-start "lmn.util.peg")
 
-(test-module 'lmn.parser.peg)
+(test-module 'lmn.util.peg)
 
 ;; ----------------------
 

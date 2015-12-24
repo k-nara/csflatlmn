@@ -1,4 +1,4 @@
-(define-module lmn.parser.peg
+(define-module lmn.util.peg
   (use util.stream)
   (use util.queue)
   (export <parse-error>
@@ -15,7 +15,7 @@
           $sep-by $sep-by1 $alternate1 $alternate
           $chain-left $chain-right $fold-left $fold-right))
 
-(select-module lmn.parser.peg)
+(select-module lmn.util.peg)
 
 ;; 再帰下降のパーサーコンビネーターを提供する。
 
