@@ -96,7 +96,7 @@
    (tail :init-keyword :tail)))
 
 ;; 存在表を作成する。 TYPE は `make-hash-table' の引数。
-(define (make-set :optional [type 'equal?])
+(define (make-set :optional [type 'eq?])
   (let1 tail-cell (cons #f #f)
     (make <set> :hash (make-hash-table type) :head (cons #f tail-cell) :tail tail-cell)))
 
