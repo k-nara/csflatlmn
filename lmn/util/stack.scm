@@ -1,8 +1,8 @@
-(define-module lmn.evaluator.control.stack
+(define-module lmn.util.stack
   (export <stack> *stack-allocation-unit*
           make-stack stack-push! stack-pop! stack-pop-until! stack-length stack-empty? stack-ref))
 
-(select-module lmn.evaluator.control.stack)
+(select-module lmn.util.stack)
 
 ;; スタックを提供する。このライブラリの提供するスタックは 「先頭に要素
 ;; を追加する」 「先頭の要素を廃棄する」の２つの方法でのみ変更すること
@@ -10,7 +10,7 @@
 ;; ArrayList のように適宜拡大される配列で、アロケーションユニットごとに
 ;; 全体がコピーされるので注意する。
 
-(define *stack-allocation-unit* 15)
+(define *stack-allocation-unit* 20)
 
 ;; スタックのオブジェクト。
 (define-class <stack> ()

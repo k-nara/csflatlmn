@@ -2,9 +2,9 @@
 
 (use test.util)
 
-(test-start "lmn.evaluator.control.pp")
+(test-start "lmn.util.pp")
 
-(test-module 'lmn.evaluator.control.pp)
+(test-module 'lmn.util.pp)
 
 ;; ----------------------
 

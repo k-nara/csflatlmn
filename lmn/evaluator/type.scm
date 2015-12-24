@@ -1,9 +1,9 @@
 (define-module lmn.evaluator.type
   (use gauche.collection) ;; map-to
+  (use lmn.util.stack)
+  (use lmn.util.pp)
   (use lmn.object.atom)
   (use lmn.object.atomset)
-  (use lmn.evaluator.control.stack)
-  (use lmn.evaluator.control.pp)
   (use lmn.evaluator.operations)
   (export type-check% make-type make-type-rule type-subr-link))
 

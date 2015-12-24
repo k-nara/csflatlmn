@@ -2,16 +2,16 @@
 
 (define-module lmn.evaluator.operations
   (use lmn.util.list)
+  (use lmn.util.pp)
+  (use lmn.util.stack)
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.object.process)
-  (use lmn.evaluator.control.pp)
-  (use lmn.evaluator.control.stack)
   (export remove-processes!% match-component% traverse-context%))
 
 (select-module lmn.evaluator.operations)
 
-;; ※このファイルを読む前に evaluator/control/ や object/ を読むべき
+;; ※このファイルを読む前に object/ を読むべき
 
 ;; ルールや型の実装に必要な諸操作を部分手続きとして提供する。
 ;;

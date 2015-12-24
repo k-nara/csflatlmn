@@ -1,7 +1,7 @@
 (use gauche.test)
 
+(use lmn.util.pp)
 (use lmn.object.atomset)
-(use lmn.evaluator.control.pp)
 (use test.util)
 
 (test-start "lmn.evaluator.type")

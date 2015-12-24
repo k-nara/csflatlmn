@@ -1,7 +1,7 @@
-(define-module lmn.evaluator.control.pp
+(define-module lmn.util.pp
   (export lambda% define% seq% or%))
 
-(select-module lmn.evaluator.control.pp)
+(select-module lmn.util.pp)
 
 ;; 戻り先を指定して呼び出せる関数 (部分手続きと呼ぶ) を用いて、動的にバッ
 ;; クトラックの手続きを生成するためのユーティリティ群を提供する。

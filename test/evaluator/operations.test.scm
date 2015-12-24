@@ -1,9 +1,9 @@
 (use gauche.test)
 
+(use lmn.util.stack)
+(use lmn.util.pp)
 (use lmn.object.atom)
 (use lmn.object.atomset)
-(use lmn.evaluator.control.stack)
-(use lmn.evaluator.control.pp)
 (use test.util)
 
 (test-start "lmn.evaluator.operations")
