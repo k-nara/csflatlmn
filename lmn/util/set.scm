@@ -1,5 +1,5 @@
 (define-module lmn.util.set
-  (export <set> make-set set-remove! set-member? set-put! set-get-iterator))
+  (export <set> make-set set-remove! set-member? set-add! set-get-iterator))
 
 (select-module lmn.util.set)
 
@@ -109,7 +109,7 @@
   (hash-table-get (slot-ref set 'hash) key #f))
 
 ;; SET から KEY を削除する。
-(define (set-put! set key)
+(define (set-add! set key)
   (unless (set-member? set key)
     (hash-table-put! (slot-ref set 'hash) key #t)
     (set-car! (slot-ref set 'tail) key)
