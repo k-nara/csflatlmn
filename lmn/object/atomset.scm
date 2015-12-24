@@ -212,7 +212,7 @@
 ;; SET に含まれる任意のアトムを始点にする。 SET にアトムが存在しない場
 ;; 合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経路中に
 ;; ill-formed なアトムが存在する場合、この関数はエラーを返すことがある。
-(define (atomset-head set :optional [atom (atomset-find-atom)] [fallback #f])
+(define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
       (let loop ([atom atom] [known-atoms (make-atomset)])
