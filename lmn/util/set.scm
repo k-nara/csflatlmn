@@ -125,7 +125,7 @@
     (rec (f)
       (cond [(not (cddr last-pair)) ;; 末尾に来た
              default]
-            [(hash-table-get hash (cadr last-pair)) ;; 次の要素はまだ削除されていない
+            [(hash-table-get hash (cadr last-pair) #f) ;; 次の要素はまだ削除されていない
              (set! last-pair (cdr last-pair))
              (car last-pair)]
             [else ;; 次の要素は削除されている (のでスキップする)
