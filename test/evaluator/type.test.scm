@@ -514,4 +514,4 @@
 
 ;; ----------------------
 
-(test-end)
+(test-end :exit-on-failure #t)
