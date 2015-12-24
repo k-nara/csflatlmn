@@ -14,70 +14,120 @@
 
 ;; -------------------------------------------
 
-;; ハッシュとリストのペアで、存在チェックにはハッシュ、イテレートにはリストを使う
-;; - 要素を追加 → ハッシュに追加 O(1) 、リストの末尾にも *破壊的に* 追加 O(1)
-;; - 要素を削除 → ハッシュからのみ削除 O(1)、リストからはイテレート中に lazy に削除 O(1)
-;; - 要素を探索 → ハッシュから探索すれば O(1)
-
-;; 次にイテレートする対象が
-;; - ハッシュテーブルにある → そのままイテレート
-;; - ハッシュテーブルにない (削除済)
-;;   - １要素のリストから消えた
-;;   - 複数の要素があるリストから消えた
-;;     - リストの末尾から消えた
-;;     - リストの先頭から消えた
-;;     - それ以外の場所から消えた
+;; [内部実装について]
 ;;
-;; ※ダミーのコンスセルを先頭や末尾におくと実装が簡単になる？コンシング
-;; ２回分くらいのオーバーヘッドは許されるだろう
+;; ハッシュとリストをセットで使って、存在チェックにはハッシュ、イテレー
+;; トにはリストを使う。リストの先頭と末尾にはダミーのコンスセルが置いて
+;; あって、特に末尾のコンスセルは cdr 部が #f になっている。２つのダミー
+;; には定数時間でアクセスできるようにしておく。
 ;;
-;; ※末尾にダミーのコンスセルを置く場合、 cdr 部を循環させて一生出られ
-;; ないようにすれば末尾にきたかどうかの処理を書かなくて済むか？
-;; → 末尾の手前に要素が増えたときに困るわそれは
+;;                                     +----+
+;;                                     |tail|
+;;                                     +----+
+;;                  dummy                 | dummy
+;;     +----+   +---+---+   +---+---+   +---+---+
+;;     |head|---|   |   |---|   |   |---|   |   |---#f
+;;     +----+   +---+---+   +---+---+   +-+-+-+-+
+;;                |     0     |     1     |     2
+;;               #f         elem1        #f
+;;
+;; 要素の追加は、ハッシュへの追加・リストへの追加とも O(1) で行える。ハッ
+;; シュへの追加は自明。リストへの追加は、まず末尾のダミーのコンスセルに
+;; 追加する要素を格納し、さらにその後ろに新しいダミーのコンスセルを作る。
+;;
+;;                                                 +----+
+;;                                                 |tail|
+;;                                                 +----+
+;;                  dummy                             | dummy
+;;     +----+   +---+---+   +---+---+   +---+---+   +---+---+
+;;     |head|---|   |   |---|   |   |---|   |   |---|   |   |---#f
+;;     +----+   +---+---+   +---+---+   +---+---+   +-+-+-+-+
+;;                |     0     |     1    |      2     |     3
+;;               #f         elem1      elem2         #f
+;;
+;; イテレータは次にイテレートすべき要素の *ひとつ前* のコンスセルを指す
+;; ポインタを持っている。このポインタは、初期状態では先頭のダミーを指し
+;; ている。
+;;
+;;             +----+                              +----+
+;;             |last|                              |tail|
+;;             +----+                              +----+
+;;                | dummy                             | dummy
+;;     +----+   +---+---+   +---+---+   +---+---+   +---+---+
+;;     |head|---|   |   |---|   |   |---|   |   |---|   |   |---#f
+;;     +----+   +---+---+   +---+---+   +---+---+   +-+-+-+-+
+;;                |     0     |     1    |      2     |     3
+;;               #f         elem1      elem2         #f
+;;
+;; イテレートする際は、次のコンスセルが末尾のダミーでないことを確認した
+;; うえで、次のコンスセルを指すようにポインタを修正し、その car 部を返
+;; す。
+;;
+;;                         +----+                  +----+
+;;                         |last|                  |tail|
+;;                         +----+                  +----+
+;;                  dummy     |                       | dummy
+;;     +----+   +---+---+   +---+---+   +---+---+   +---+---+
+;;     |head|---|   |   |---|   |   |---|   |   |---|   |   |---#f
+;;     +----+   +---+---+   +---+---+   +---+---+   +-+-+-+-+
+;;                |     0     |     1    |      2     |     3
+;;               #f         elem1      elem2         #f
+;;
+;; 要素の削除は、ハッシュテーブルからの削除を O(1) で行い、リストからの
+;; 削除はイテレータが lazy に行う。イテレータは、もし、次にイテレートす
+;; る要素がすでにハッシュから削除されていたならば、ポインタの指している
+;; コンスセルの cdr 部を破壊的に変更して、次のセルをスキップする
+;;
+;;
+;;                         +----+                  +----+
+;;                         |last|                  |tail|
+;;                         +----+                  +----+
+;;                  dummy     |       +-----------+   | dummy
+;;     +----+   +---+---+   +---+---+/  +---+---+  \+---+---+
+;;     |head|---|   |   |---|   |   |   |   |   |---|   |   |---#f
+;;     +----+   +---+---+   +---+---+   +---+---+   +-+-+-+-+
+;;                |     0     |     1    |      2     |     3
+;;               #f         elem1      elem2         #f
 
+;; 存在表のオブジェクト。
 (define-class <set> ()
   ((hash :init-keyword :hash)
    (head :init-keyword :head)
    (tail :init-keyword :tail)))
 
-;; (define (make-set :optional [type 'equal?])
-;;   (let1 cell (cons () ())
-;;     (make <set> :hash (make-hash-table type) :head cell :tail cell)))
+;; 存在表を作成する。 TYPE は `make-hash-table' の引数。
+(define (make-set :optional [type 'equal?])
+  (let1 tail-cell (cons #f #f)
+    (make <set> :hash (make-hash-table type) :head (cons #f tail-cell) :tail tail-cell)))
 
-;; (define (set-remove! set key)
-;;   (hash-table-delete! (slot-ref set 'hash) key))
+;; SET から KEY を削除する。
+(define (set-remove! set key)
+  (hash-table-delete! (slot-ref set 'hash) key))
 
-;; (define (set-member? set key)
-;;   (hash-table-get (slot-ref set 'hash) key #f))
+;; SET に KEY を追加する。
+(define (set-member? set key)
+  (hash-table-get (slot-ref set 'hash) key #f))
 
-;; (define (set-put! set key)
-;;   (let1 hash (slot-ref set 'hash)
-;;     (unless (set-member? set key)
-;;       (hash-table-put! (slot-ref set 'hash) key #t)
-;;       (let ([tail (slot-ref set 'tail)] [cell (cons key ())])
-;;         (cond [tail (set-cdr! tail cell) (slot-set! set 'tail cell)]
-;;               [else (slot-set! set 'head cell) (slot-set! set 'tail cell)])))))
+;; SET から KEY を削除する。
+(define (set-put! set key)
+  (unless (set-member? set key)
+    (hash-table-put! (slot-ref set 'hash) key #t)
+    (set-car! (slot-ref set 'tail) key)
+    (let1 newtail (cons #f #f)
+      (set-cdr! (slot-ref set 'tail) newtail)
+      (slot-set! set 'tail newtail))))
 
-;; ;; - イテレータがすでに末尾に達した後に要素が増えた場合の処理
-;; ;; - 唯一存在する要素が消えた場合？
-;;
-;; (define (set-get-iterator set :optional [default #f])
-;;   (let ([current-pair #f]
-;;         [last-pair #f])
-;;     (rec (f)
-;;       (set! last-pair current-pair)
-;;       (set! current-pair (case current-pair
-;;                            [(#f) (slot-ref set 'head)]
-;;                            [(()) ()]
-;;                            [else (cdr current-pair)]))
-;;       (if (null? current-pair) default
-;;           (let1 elem (car current-pair)
-;;             (cond [(hash-table-get (slot-ref set 'hash) elem) ;; elem は削除されていない
-;;                    elem]
-;;                   [(pair? last-pair) ;; 直前のセルをいじって elem を削除
-;;                    (set-cdr! last-pair (cdr current-pair))
-;;                    (f)]
-;;                   ;; 末尾のセルの場合も tail の更新が必要
-;;                   [else ;; これは先頭のセル
-;;                    (slot-set! set 'head (cdr current-pair))
-;;                    (f)]))))))
+;; SET に含まれる要素を順々に返す関数 (イテレータ) を作成する。このイテ
+;; レータは、末尾に達した場合 DEFAULT を返す。
+(define (set-get-iterator set :optional [default #f])
+  (let ([last-pair (slot-ref set 'head)]
+        [hash (slot-ref set 'hash)])
+    (rec (f)
+      (cond [(not (cddr last-pair)) ;; 末尾に来た
+             default]
+            [(hash-table-get hash (cadr last-pair)) ;; 次の要素はまだ削除されていない
+             (set! last-pair (cdr last-pair))
+             (car last-pair)]
+            [else ;; 次の要素は削除されている (のでスキップする)
+             (set-cdr! last-pair (cddr last-pair))
+             (f)]))))
