@@ -1,5 +1,6 @@
 (define-module lmn.util.set
-  (export <set> make-set set-remove! set-member? set-add! set-get-iterator))
+  (export <set> make-set set-remove! set-member? set-add!
+          set-elements set-get-iterator set-copy))
 
 (select-module lmn.util.set)
 
@@ -117,6 +118,10 @@
       (set-cdr! (slot-ref set 'tail) newtail)
       (slot-set! set 'tail newtail))))
 
+;; SET に含まれるすべての要素をリストとして返す。
+(define (set-elements set)
+  (hash-table-keys (slot-ref set 'hash)))
+
 ;; SET に含まれる要素を順々に返す関数 (イテレータ) を作成する。このイテ
 ;; レータは、末尾に達した場合 DEFAULT を返す。
 (define (set-get-iterator set :optional [default #f])
@@ -131,3 +136,9 @@
             [else ;; 次の要素は削除されている (のでスキップする)
              (set-cdr! last-pair (cddr last-pair))
              (f)]))))
+
+;; SET の浅いコピーを返す。
+(define (set-copy set)
+  (let ([hash (hash-table-copy (slot-ref set 'hash))]
+        [head (list-copy (slot-ref set 'head))])
+    (make <set> :hash hash :head head :tail (last-pair head))))

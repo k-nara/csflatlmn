@@ -1,3 +1,5 @@
+;; *WIP* set-copy のテストを書く
+
 (use gauche.test)
 
 (use test.util)
@@ -20,6 +22,7 @@
 
 (set-remove! set1 3)
 
+(test* "set-elements (1)" '(1 2 4) (set-elements set1) (set-equal?))
 (test* "set-member? (1)" #t (set-member? set1 1))
 (test* "set-member? (2)" #f (set-member? set1 5))
 (test* "set-member? (3)" #f (set-member? set1 3))
@@ -27,6 +30,7 @@
 
 (set-remove! set1 4) ;; ２度追加した要素も１度の削除で消える
 
+(test* "set-elements (1)" '(1 2) (set-elements set1) (set-equal?))
 (test* "set-member? (5)" #f (set-member? set1 4))
 
 ;; ----------------------
