@@ -1,5 +1,3 @@
-;; *WIP* set-copy のテストを書く
-
 (use gauche.test)
 
 (use test.util)
@@ -105,6 +103,30 @@
 
 (test* "dynamic addition (4)" 3 (it2))
 (test* "dynamic addition (5)" #f (it2))
+
+;; ----------------------
+
+(test-section "set-copy")
+
+(define set5 (make-set))
+
+(set-add! set5 1)
+(set-add! set5 2)
+(set-add! set5 3)
+(set-add! set5 4)
+
+(define set6 (set-copy set5))
+
+(test* "set-copy (1)" '(1 2 3 4) (set-elements set6) (set-equal?))
+
+(set-remove! set5 4)
+(set-add! set6 5)
+
+(test* "set-copy (2)" '(1 2 3) (set-elements set5) (set-equal?))
+(test* "set-copy (3)" '(1 2 3 4 5) (set-elements set6) (set-equal?))
+
+(test* "set-copy (4)" '(1 2 3) (it->list (set-get-iterator set5)))
+(test* "set-copy (5)" '(1 2 3 4 5) (it->list (set-get-iterator set6)))
 
 ;; ----------------------
 
