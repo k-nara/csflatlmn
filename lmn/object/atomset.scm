@@ -131,16 +131,15 @@
 
 ;; SET にアトム ATOM を追加する。SET に ATOM がすでに含まれている場合は
 ;; 何もしない。追加するアトムの個数に比例する時間がかかる。
-(define (atomset-add-atom! set :rest atoms)
-  (let1 outer-hash (slot-ref set 'atoms)
-    (dolist [atom atoms]
-      (let1 functor (atom-functor atom)
-        (cond [(hash-table-get outer-hash functor #f) =>
-               (lambda (hash) (hash-table-put! hash atom #t))]
-              [else
-               (let1 hash (make-hash-table 'eq?)
-                 (hash-table-put! hash atom #t)
-                 (hash-table-put! outer-hash functor hash))])))))
+(define (atomset-add-atom! set atom)
+  (let ([outer-hash (slot-ref set 'atoms)]
+        [functor (atom-functor atom)])
+    (cond [(hash-table-get outer-hash functor #f) =>
+           (lambda (hash) (hash-table-put! hash atom #t))]
+          [else
+           (let1 hash (make-hash-table 'eq?)
+             (hash-table-put! hash atom #t)
+             (hash-table-put! outer-hash functor hash))])))
 
 ;; SET からアトム ATOM を取り除く。
 (define (atomset-remove-atom! set atom)
