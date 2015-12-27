@@ -29,7 +29,8 @@
 (define (stack-empty? stack)
   (= (stack-length stack) 0))
 
-;; STACK にオブジェクト OBJ を push する。
+;; STACK にオブジェクト OBJ を push する (スタックの大きさが足りていな
+;; い場合はコピーが発生する)。
 (define (stack-push! stack obj)
   (let ([length (stack-length stack)]
         [data (slot-ref stack 'data)])
@@ -42,13 +43,12 @@
     (vector-set! data length obj)
     (slot-set! stack 'length (+ 1 length))))
 
-;; STACK のオブジェクト数が N になるまで先頭から要素を捨てる (N にかか
-;; わらず定数時間)。
+;; STACK のオブジェクト数が N になるまで先頭から要素を捨てる。
 (define (stack-pop-until! stack n)
   (slot-set! stack 'length n))
 
-;; STACK からオブジェクトを N つ捨てる (N にかかわらず定数時間) 。push
-;; した数以上のオブジェクトを捨てるとエラーになる。
+;; STACK からオブジェクトを N つ捨てる。pushした数以上のオブジェクトを
+;; 捨てるとエラーになる。
 (define (stack-pop! stack :optional [n 1])
   (let1 length (stack-length stack)
     (when (< length n)

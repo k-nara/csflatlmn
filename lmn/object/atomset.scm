@@ -131,7 +131,7 @@
 ;; ---- membership
 
 ;; SET にアトム ATOM を追加する。SET に ATOM がすでに含まれている場合は
-;; 何もしない。追加するアトムの個数に比例する時間がかかる。
+;; 何もしない。
 (define (atomset-add-atom! set atom)
   (let ([hash (slot-ref set 'atoms)]
         [functor (atom-functor atom)])
@@ -154,9 +154,9 @@
     (set-member? set atom)
     #f))
 
-;; SET に含まれる、ファンクタが FUNCTOR であるような (省略された場合は
-;; 任意の) アトムを全て取得してリストとして返す。該当するアトムの個数だ
-;; けの時間がかかる。
+;; [O(n)] SET に含まれる、ファンクタが FUNCTOR であるような (省略された
+;; 場合は任意の) アトムを全て取得してリストとして返す。該当するアトムの
+;; 個数だけの時間がかかる。
 (define (atomset-atoms set :optional [functor #f])
   (cond [(not functor)
          (apply append! (map set-elements (hash-table-values (slot-ref set 'atoms))))]
@@ -193,11 +193,11 @@
 
 ;; ---- utilities
 
-;; SET に含まれるそれぞれのアトムについて関数 FN を呼ぶ。
+;; [O(n)] SET に含まれるそれぞれのアトムについて関数 FN を呼ぶ。
 (define (atomset-map-atoms fn set)
   (map fn (atomset-atoms set)))
 
-;; SET の浅いコピーを返す (含まれるアトムまでは複製されない) 。
+;; [O(n)] SET の浅いコピーを返す (含まれるアトムまでは複製されない)。
 (define (atomset-copy set)
   (make <atomset>
     :atoms (rlet1 hash (hash-table-copy (slot-ref set 'atoms))
@@ -205,13 +205,14 @@
                (lambda (k v) (hash-table-put! hash k (set-copy v)))))
     :proxy (atom-copy (slot-ref set 'proxy))))
 
-;; SET に含まれるアトム ATOM から最終引数を順々に辿っていき、１．最終引
-;; 数が SET の外部のアトムにつながっているアトムに到達した場合、あるい
-;; はそもそも０価のアトムの場合、そのアトムを返す。２．閉路が見つかった
-;; 場合、その閉路に含まれる任意のアトムを返す。 ATOM が省略された場合、
-;; SET に含まれる任意のアトムを始点にする。 SET にアトムが存在しない場
-;; 合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経路中に
-;; ill-formed なアトムが存在する場合、この関数はエラーを返すことがある。
+;; [O(n)] SET に含まれるアトム ATOM から最終引数を順々に辿っていき、１．
+;; 最終引数が SET の外部のアトムにつながっているアトムに到達した場合、
+;; あるいはそもそも０価のアトムの場合、そのアトムを返す。２．閉路が見つ
+;; かった場合、その閉路に含まれる任意のアトムを返す。 ATOM が省略された
+;; 場合、SET に含まれる任意のアトムを始点にする。 SET にアトムが存在し
+;; ない場合や ATOM が SET に含まれない場合は FALLBACK を返す。探索の経
+;; 路中にill-formed なアトムが存在する場合、この関数はエラーを返すこと
+;; がある。
 (define (atomset-head set :optional [atom (atomset-find-atom set)] [fallback #f])
   (if (or (not atom) (not (atomset-member set atom)))
       fallback
@@ -256,12 +257,12 @@
                   (cons (list n m) (loop (delete1! m (cdr lst)))))
                 (loop (cdr lst))))))))
 
-;; well-formed なアトム集合 SET の S 式表現を生成する。アトムは文字列か
-;; ら始まるリストで、極力 「最終引数の略記」を用いた形で表現される。自
-;; 由リンクは整数によってそのポート番号が表現される。局所リンクは自然数
-;; でないユニークなシンボルで表現される。direct link は２つのポート番号
-;; を並べたリストとして表現される。この関数は SET がill-formed であれば
-;; エラーを返すことがある。
+;; [O(n)] well-formed なアトム集合 SET の S 式表現を生成する。アトムは
+;; 文字列から始まるリストで、極力 「最終引数の略記」を用いた形で表現さ
+;; れる。自由リンクは整数によってそのポート番号が表現される。局所リンク
+;; は自然数でないユニークなシンボルで表現される。direct link は２つのポー
+;; ト番号を並べたリストとして表現される。この関数は SET がill-formed で
+;; あればエラーを返すことがある。
 (define (atomset->sexp set)
   (let loop ([res ()]
              [pending-ports (make-hash-table 'equal?)]
@@ -296,8 +297,8 @@
     ;; add direct links
     (append! res (-atomset-list-direct-links set))))
 
-;; atomset->sexp が生成するものと同じ形式のＳ式から <atomset> を構成す
-;; る。
+;; [O(n)] atomset->sexp が生成するものと同じ形式のＳ式から <atomset> を
+;; 構成する。
 (define (sexp->atomset sexp)
   (let ([proc (make-atomset
                (+ 1 ((rec (max* list)
@@ -331,8 +332,8 @@
               #f tree)]))
     proc))
 
-;; SET の深いコピーを返す。 SET 内のアトムもすべて複製される。 SET が０
-;; 価でない場合、得られる <atomset> は引数を適切にセットするまで
-;; ill-formed であることに注意する。
+;; [O(n)] SET の深いコピーを返す。 SET 内のアトムもすべて複製される。
+;; SET が０価でない場合、得られる <atomset> は引数を適切にセットするま
+;; でill-formed であることに注意する。
 (define (atomset-deep-copy set)
   (sexp->atomset (atomset->sexp set)))

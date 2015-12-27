@@ -105,11 +105,11 @@
 (define (set-remove! set key)
   (hash-table-delete! (slot-ref set 'hash) key))
 
-;; SET に KEY を追加する。
+;; SET に KEY が含まれていれば #t, さもなければ #f を返す。
 (define (set-member? set key)
   (hash-table-get (slot-ref set 'hash) key #f))
 
-;; SET から KEY を削除する。
+;; SET に KEY を追加する。
 (define (set-add! set key)
   (unless (set-member? set key)
     (hash-table-put! (slot-ref set 'hash) key #t)
@@ -118,7 +118,7 @@
       (set-cdr! (slot-ref set 'tail) newtail)
       (slot-set! set 'tail newtail))))
 
-;; SET に含まれるすべての要素をリストとして返す。
+;; [O(n)] SET に含まれるすべての要素をリストとして返す。
 (define (set-elements set)
   (hash-table-keys (slot-ref set 'hash)))
 
@@ -137,7 +137,7 @@
              (set-cdr! last-pair (cddr last-pair))
              (f)]))))
 
-;; SET の浅いコピーを返す。
+;; [O(n)] SET の浅いコピーを返す。
 (define (set-copy set)
   (let ([hash (hash-table-copy (slot-ref set 'hash))]
         [head (list-copy (slot-ref set 'head))])

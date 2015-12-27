@@ -31,10 +31,10 @@
 
 ;; ---- remove-processes%
 
-;; PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC から取
-;; り除き、 next を呼び出す。 next の戻り値がそのまま全体の戻り値になる
-;; (next が #fを返しても、破壊した PROC が元に戻ることはないことに注意
-;; する)。
+;; [O(n)] PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC
+;; から取り除き、 next を呼び出す。 next の戻り値がそのまま全体の戻り値
+;; になる(next が #fを返しても、破壊した PROC が元に戻ることはないこと
+;; に注意する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack pstack type-env)
   (dolist (ix indices)
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
@@ -101,8 +101,8 @@
 ;; PSTACK を元の状態に戻して別のマッチを探す。マッチする部分プロセスが
 ;; それ以上存在しない場合、PROC, KNOWN-ATOMS, LSTACK, PSTACK には手を付
 ;; けず、たんに #f を返す。 INDICES は PAT の価数と同じ長さのベクタで、
-;; そのそれぞれの要素は #f または自然数でなければならない。ベクタの K
-;; 番目の要素が自然数 N の場合、取り出す部分プロセスの第 K ポートは
+;; そのそれぞれの要素は #f または自然数でなければならない。ベクタの K番
+;; 目の要素が自然数 N の場合、取り出す部分プロセスの第 K ポートは
 ;; LSTACK の N 番目に格納されたポートにマッチしなければならない。K 番目
 ;; の要素が #f の場合は任意のポートがマッチし、next を呼び出す前にマッ
 ;; チした部分プロセスの第 K 引数 が LSTACKにプッシュされる。 #f がベク
