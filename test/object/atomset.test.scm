@@ -128,6 +128,9 @@
 (test* "atomset-get-iterator (5)"
        (generator->list (atomset-get-iterator proc1  (functor "a" 2)))
        (atomset-atoms proc1  (functor "a" 2)) (set-equal?))
+(test* "atomset-get-iterator (6)"
+       (generator->list (atomset-get-iterator proc1  (functor "hoge" 2)))
+       (atomset-atoms proc1  (functor "hoge" 2)) (set-equal?))
 
 (test* "atomset-find-atom (1)" atoma (atomset-find-atom proc2 (functor "a" 2)))
 (test* "atomset-find-atom (2)" #f (atomset-find-atom proc1 (functor "a" 0)))
