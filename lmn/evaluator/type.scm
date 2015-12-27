@@ -144,7 +144,8 @@
                         (stack-push! lstack (stack-ref newlstack ix)))
                       (cond [(next proc known-atoms lstack pstack type-env) => identity]
                             [else (stack-pop-until! lstack lstack-state) #f]))))
-         :next next proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
+         ;; :next next proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
+         :next next proc known-atoms newlstack (make-stack) type-env)))))
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
