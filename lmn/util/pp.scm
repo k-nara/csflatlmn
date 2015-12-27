@@ -54,7 +54,7 @@
 (define% ((or% :rest fns) :rest args)
   (let loop ([fns fns])
     (cond [(null? fns) #f]
-          [(apply (car fns) :next next args) => -identity%]
+          [(apply (car fns) :next next args) => identity]
           [else (loop (cdr fns))])))
 
 ;; Local Variables:

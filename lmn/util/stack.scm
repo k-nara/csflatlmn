@@ -58,7 +58,6 @@
 ;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。そのよ
 ;; うなオブジェクトがない場合にはエラーになる。
 (define (stack-ref stack n)
-  (unless (and (>= n 0)
-               (< n (stack-length stack)))
+  (unless (and (>= n 0) (< n (stack-length stack)))
     (error "Stack boundary error."))
   (vector-ref (slot-ref stack 'data) n))

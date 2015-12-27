@@ -37,7 +37,7 @@
 ;; する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack pstack type-env)
   (dolist (ix indices)
-    (atomset-map-atoms (^a (atomset-remove-atom! proc a)) (stack-ref pstack ix)))
+    (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
   (next proc known-atoms lstack pstack type-env))
 
 ;; ;; ---- instantiate-process%

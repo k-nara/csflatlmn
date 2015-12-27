@@ -42,8 +42,7 @@
 ;; 二つの <portptr> が同じポートを指しているとき、およびそのときに限り
 ;; 二つの <portptr> は等しい。
 (define (port=? p1 p2)
-  (and (eq? (port-atom p1) (port-atom p2))
-       (= (port-ix p1) (port-ix p2))))
+  (and (eq? (port-atom p1) (port-atom p2)) (= (port-ix p1) (port-ix p2))))
 
 ;; ---- <atom>
 
@@ -126,14 +125,11 @@
 ;; ムは相当する引数が正しくセットされるまで ill-formed であることに注意
 ;; する。
 (define (atom-copy atom)
-  (rlet1 newatom (make <atom>
-                   :name (atom-name atom)
-                   :args (vector-copy (slot-ref atom 'args)))
+  (rlet1 newatom (make <atom> :name (atom-name atom) :args (vector-copy (slot-ref atom 'args)))
     ;; 局所リンクを解決する
     (dotimes [n (atom-arity atom)]
       (let1 arg (atom-arg atom n)
-        (when (and (not (undefined? arg))
-                   (eq? (port-atom arg) atom))
+        (when (and (not (undefined? arg)) (eq? (port-atom arg) atom))
           (let1 m (port-ix arg)
             (atom-set-arg! newatom n (atom-port newatom m))
             (atom-set-arg! newatom m (atom-port newatom n))))))))
