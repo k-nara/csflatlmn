@@ -1,4 +1,4 @@
-(add-load-path ".")
+(add-load-path "../")
 
 (use srfi-27)
 (use lmn.util.pp)
