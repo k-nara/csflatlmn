@@ -1,5 +1,3 @@
-;; *WIP* イテレータ破壊問題を解決する必要がある
-
 (define-module lmn.object.atomset
   (use gauche.collection)
   (use lmn.util.list)
