@@ -23,6 +23,7 @@
 ;;           相互再帰的な型を認めるのに型名の動的束縛が一番お手軽なので仕方ないかも
 
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
+;; *TODO* reuse-known-atoms 引数の実装が後付けとはいえ汚いので整理する
 
 ;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
 ;;         -> known-atoms を atomset の stack にするのが手ごろか？
@@ -80,9 +81,10 @@
 
 ;; ハッシュテーブル TYPE-ENV から型の名前 NAME に対応する型定義のオブジェ
 ;; クトを探して、呼び出す。存在しなければエラーを返す。
-(define% ((type-check% name args) proc known-atoms lstack pstack type-env)
+(define% ((type-check% name args :optional [reuse-known-atoms #f])
+          proc known-atoms lstack pstack type-env)
   (cond [(hash-table-get type-env name #f)
-         => (^t ((t args) :next next proc known-atoms lstack pstack type-env))]
+         => (^t ((t args) :next next proc known-atoms lstack pstack type-env reuse-known-atoms))]
         [else
          (error "(type-check) call to undefined type")]))
 
@@ -128,10 +130,10 @@
                                    x))
                        subgoal-args)]
          [pp (apply seq% (append! (map (^(p b) (match-component% p b)) patterns patbinds)
-                                  (map (^(s a) (type-check% s a)) subgoals subargs)))])
+                                  (map (^(s a) (type-check% s a #t)) subgoals subargs)))])
     (set! return-ix (reverse! return-ix))
     ;; ここから部分手続き
-    (lambda% (proc known-atoms lstack pstack type-env)
+    (lambda% (proc known-atoms lstack pstack type-env :optional [reuse-known-atoms #f])
       (let1 newlstack (make-stack)
         ;; newlstack に引数を push
         (dotimes (i arity)
@@ -144,8 +146,8 @@
                         (stack-push! lstack (stack-ref newlstack ix)))
                       (cond [(next proc known-atoms lstack pstack type-env) => identity]
                             [else (stack-pop-until! lstack lstack-state) #f]))))
-         ;; :next next proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
-         :next next proc known-atoms newlstack (make-stack) type-env)))))
+         :next next proc (if reuse-known-atoms known-atoms (atomset-copy known-atoms))
+         newlstack (make-stack) type-env)))))
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
@@ -161,11 +163,11 @@
     (error "(type-check) wrong number of arguments"))
   (let ([arg1 (vector-ref args 0)] [arg2 (vector-ref args 1)])
     (cond [(and arg1 arg2)
-           (lambda% (proc known-atoms lstack pstack type-env)
+           (lambda% (proc known-atoms lstack pstack type-env :optional _)
              (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
                   (next proc known-atoms lstack pstack type-env)))]
           [(or arg1 arg2)
-           => (^a (lambda% (proc known-atoms lstack pstack type-env)
+           => (^a (lambda% (proc known-atoms lstack pstack type-env :optional _)
                     (let1 port (stack-ref lstack a)
                       (stack-push! lstack (port-partner port))
                       (stack-push! lstack port))
