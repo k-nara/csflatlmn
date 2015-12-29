@@ -62,8 +62,8 @@
 
 ;; [例1c.プロシージャを生成]
 ;;
-;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2)) #(#f #f #f)))
-;;       (match-component% (sexp->atomset '(("b")) #()))
+;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f))
+;;       (match-component% (sexp->atomset '(("b"))) #())
 ;;       (or% ;; clauses
 ;;        (seq% (type-check% "hoge" #(#f 0))
 ;;              (traverse-context% #(0 3))
@@ -72,14 +72,14 @@
 ;;                     (or% (seq% (type-check% "<" #(1 2))
 ;;                                (traverse-context% #(1))
 ;;                                (traverse-context% #(2))
-;;                                (instantiate-process% '(("d" 5) (5 1) (5 2)))
-;;                                (remove-processes% '(3 4 5)))))
+;;                                (instantiate-process!% '(("d" 5) (5 1) (5 2)))
+;;                                (remove-processes!% '(3 4 5)))))
 ;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
 ;;                     (or% (seq% (type-check% ">" #(1 2))
 ;;                                (traverse-context% #(1))
 ;;                                (traverse-context% #(2))
-;;                                (instantiate-process% '(("e" 3) (4 1) (4 2)))
-;;                                (remove-processes% '(3 4 5)))))))))
+;;                                (instantiate-process!% '(("e" 3) (4 1) (4 2)))
+;;                                (remove-processes!% '(3 4 5)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 
@@ -138,16 +138,16 @@
 ;;                     (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
 ;;                     (or% (seq% (traverse-context% #(6))
 ;;                                (traverse-context% #(8))
-;;                                (instantiate-process% '(("=" 2 7) ("=" 4 9)))
+;;                                (instantiate-process!% '(("=" 2 7) ("=" 4 9)))
 ;;                                (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 
-;; ---- ルールの例 (右辺でリンク生成)
+;; ---- ルールの例 (右辺が濃い)
 
 ;; [例3.LMNtal 構文で書かれたルール]
 ;;
-;; a($x[b]) :- c($x[d]).
+;; a($x[b]) :- c($x[d(L1, L2, L1)]), b(L2, e).
 
 ;; [例3b.ルールを整理 (このオブジェクトは実際には作られない)]
 ;;
@@ -157,8 +157,8 @@
 ;;     bindings: (#f) (#f)
 ;;     clauses: clause{
 ;;                  guards:   p2
-;;                  contexts: (0 1)
-;;                  rhs: ("c" #f) (2 2 #f) ("d" 3)
+;;                  contexts: (1 0)
+;;                  rhs: ("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))
 ;;              }
 ;; }
 
@@ -167,6 +167,6 @@
 ;; (seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0))) #(#f))
 ;;       (or% ;; clauses
-;;         (seq% (traverse-context% #(0 1))
-;;               (instantiate-process% '(("c" #f) (2 2 #f) ("d" 3)))
-;;               (remove-processes% '(0 1 2)))))
+;;         (seq% (traverse-context% #(1 0))
+;;               (instantiate-process!% '(("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))))
+;;               (remove-processes!% '(0 1 2)))))

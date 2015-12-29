@@ -269,7 +269,7 @@
 (define% ((traverse-context% indices) proc known-atoms lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
-         [pending-ports (map (^n (cons (stack-ref lstack n) n)) (iota arity))])
+         [pending-ports (map (^(n m) (cons (stack-ref lstack n) m)) indices (iota arity))])
     (let/cc succeed
       (let/cc fail
         (while (pair? pending-ports)

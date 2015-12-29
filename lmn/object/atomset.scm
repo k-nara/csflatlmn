@@ -299,35 +299,34 @@
 ;; 構成する。
 (define (sexp->atomset sexp)
   (let ([proc (make-atomset
-               (+ 1 ((rec (max* list)
-                       (cond [(integer? list) list]
-                             [(pair? list) (apply max (map max* list))]
-                             [else -1])) sexp)))]
+               (+ 1 (let max* ([list sexp])
+                      (cond [(integer? list) list]
+                            [(pair? list) (apply max (map max* list))]
+                            [else -1]))))]
         [pending-ports (make-hash-table 'eq?)])
     (dolist (tree sexp)
       (cond [(integer? (car tree))
              (atomset-add-direct-link! proc (car tree) (cadr tree))]
             [else
-             ((rec (traverse parent tree)
-                (let* ([arity (+ (length (cdr tree)) (if parent 1 0))]
-                       [atom (make-atom (car tree) arity)]
-                       [n 0])
-                  (atomset-add-atom! proc atom)
-                  (when parent
-                    (atom-set-arg! atom (- arity 1) parent)
-                    (port-set-partner! parent (atom-port atom (- arity 1))))
-                  (dolist (arg (cdr tree))
-                    (cond [(integer? arg)
-                           (atomset-set-port! proc arg (atom-port atom n))]
-                          [(pair? arg)
-                           (traverse (atom-port atom n) arg)]
-                          [(hash-table-get pending-ports arg #f)
-                           => (^p (atom-set-arg! atom n p)
-                                  (port-set-partner! p (atom-port atom n)))]
-                          [else
-                           (hash-table-put! pending-ports arg (atom-port atom n))])
-                    (set! n (+ n 1)))))
-              #f tree)]))
+             (let traverse ([parent #f] [tree tree])
+               (let* ([arity (+ (length (cdr tree)) (if parent 1 0))]
+                      [atom (make-atom (car tree) arity)]
+                      [n 0])
+                 (atomset-add-atom! proc atom)
+                 (when parent
+                   (atom-set-arg! atom (- arity 1) parent)
+                   (port-set-partner! parent (atom-port atom (- arity 1))))
+                 (dolist (arg (cdr tree))
+                   (cond [(integer? arg)
+                          (atomset-set-port! proc arg (atom-port atom n))]
+                         [(pair? arg)
+                          (traverse (atom-port atom n) arg)]
+                         [(hash-table-get pending-ports arg #f)
+                          => (^p (atom-set-arg! atom n p)
+                                 (port-set-partner! p (atom-port atom n)))]
+                         [else
+                          (hash-table-put! pending-ports arg (atom-port atom n))])
+                   (set! n (+ n 1)))))]))
     proc))
 
 ;; [O(n)] SET の深いコピーを返す。 SET 内のアトムもすべて複製される。
