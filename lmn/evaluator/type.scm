@@ -25,8 +25,7 @@
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
 ;; *TODO* reuse-known-atoms 引数の実装が後付けとはいえ汚いので整理する
 
-;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
-;;         -> known-atoms を atomset の stack にするのが手ごろか？
+;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれる
 
 ;; ---- 型の例
 
