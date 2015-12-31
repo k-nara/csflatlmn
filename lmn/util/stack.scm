@@ -55,9 +55,12 @@
       (error "Cannot operate pop on an empty stack."))
     (slot-set! stack 'length (- length n))))
 
-;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。そのよ
-;; うなオブジェクトがない場合にはエラーになる。
+;; STACK に N 番目 (0-origin) に push されたオブジェクトを返す。 N が負
+;; の場合、最後から数えて -N 番目 (1-origin) を返す。該当するオブジェク
+;; トがない場合にはエラーになる。
 (define (stack-ref stack n)
-  (unless (and (>= n 0) (< n (stack-length stack)))
-    (error "Stack boundary error."))
-  (vector-ref (slot-ref stack 'data) n))
+  (let* ([len (slot-ref stack 'length)]
+         [ix (+ n (if (< n 0) len 0))])
+    (unless (and (>= ix 0) (< ix len))
+      (error "Stack boundary error."))
+    (vector-ref (slot-ref stack 'data) ix)))
