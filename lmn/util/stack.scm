@@ -1,6 +1,7 @@
 (define-module lmn.util.stack
   (export <stack> *stack-allocation-unit*
-          make-stack stack-push! stack-pop! stack-pop-until! stack-length stack-empty? stack-ref))
+          make-stack stack-push! stack-pop! stack-pop-until! stack-length
+          stack-empty? stack-ref stack-set!))
 
 (select-module lmn.util.stack)
 
@@ -64,3 +65,11 @@
     (unless (and (>= ix 0) (< ix len))
       (error "Stack boundary error."))
     (vector-ref (slot-ref stack 'data) ix)))
+
+;; stack-ref のセット版。
+(define (stack-set! stack n obj)
+  (let* ([len (slot-ref stack 'length)]
+         [ix (+ n (if (< n 0) len 0))])
+    (unless (and (>= ix 0) (< ix len))
+      (error "Stack boundary error."))
+    (vector-set! (slot-ref stack 'data) ix obj)))
