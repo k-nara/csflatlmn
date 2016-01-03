@@ -7,7 +7,7 @@
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.object.process)
-  (export remove-processes!% match-component% traverse-context%))
+  (export remove-processes!% instantiate-process!% match-component% traverse-context%))
 
 (select-module lmn.evaluator.operations)
 
@@ -40,9 +40,35 @@
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
   (next proc known-atoms lstack pstack type-env))
 
-;; ;; ---- instantiate-process%
-;;
-;; (define% ((instantiate-process% )))
+;; ---- instantiate-process!%
+
+(define% ((instantiate-process!% trees) proc known-atoms lstack pstack type-env)
+  (let1 pending-ports (make-hash-table 'eq?)
+    (dolist (tree trees)
+      (let loop ([tree tree] [parent #f])
+        (cond [(integer? tree) ;; arg in lstack
+               (port-connect! parent (port-partner (stack-ref lstack tree)))]
+              [(symbol? tree) ;; local link
+               (if-let1 port (hash-table-get pending-ports tree #f)
+                 (port-connect! parent port)
+                 (hash-table-put! pending-ports tree parent))]
+              [else
+               (let ([newproc
+                      (cond [(string? (car tree)) ;; atom
+                             (let* ([arity (+ (if parent 1 0) (length (cdr tree)))]
+                                    [atom (make-atom (car tree) arity)])
+                               (atomset-add-atom! proc atom)
+                               atom)]
+                            [else ;; context
+                             (rlet1 proc2 (atomset-deep-copy (stack-ref pstack (car tree)))
+                               (atomset-map-atoms (pa$ atomset-add-atom! proc) proc2))])]
+                     [ix 0])
+                 (dolist (subtree (cdr tree))
+                   (loop subtree (process-port newproc ix))
+                   (inc! ix))
+                 (when parent
+                   (port-connect! parent (process-port newproc ix))))])))
+    (next proc known-atoms lstack pstack type-env)))
 
 ;; ---- match-component%
 
@@ -269,7 +295,7 @@
 (define% ((traverse-context% indices) proc known-atoms lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
-         [pending-ports (map (^n (cons (stack-ref lstack n) n)) (iota arity))])
+         [pending-ports (map (^(n m) (cons (stack-ref lstack n) m)) indices (iota arity))])
     (let/cc succeed
       (let/cc fail
         (while (pair? pending-ports)

@@ -23,9 +23,9 @@
 ;;           相互再帰的な型を認めるのに型名の動的束縛が一番お手軽なので仕方ないかも
 
 ;; *TODO* make-type-rule は args についてメモ化した方がいい？
+;; *TODO* reuse-known-atoms 引数の実装が後付けとはいえ汚いので整理する
 
-;; *FIXME* type-check% が内部で atomset-copy しているが、これは O(1) でない
-;;         -> known-atoms を atomset の stack にするのが手ごろか？
+;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれる
 
 ;; ---- 型の例
 
@@ -80,9 +80,10 @@
 
 ;; ハッシュテーブル TYPE-ENV から型の名前 NAME に対応する型定義のオブジェ
 ;; クトを探して、呼び出す。存在しなければエラーを返す。
-(define% ((type-check% name args) proc known-atoms lstack pstack type-env)
+(define% ((type-check% name args :optional [reuse-known-atoms #f])
+          proc known-atoms lstack pstack type-env)
   (cond [(hash-table-get type-env name #f)
-         => (^t ((t args) :next next proc known-atoms lstack pstack type-env))]
+         => (^t ((t args) :next next proc known-atoms lstack pstack type-env reuse-known-atoms))]
         [else
          (error "(type-check) call to undefined type")]))
 
@@ -106,32 +107,33 @@
   ;; 引数の数を確認
   (unless (= arity (vector-length args))
     (error "(type-check) wrong number of arguments"))
-  ;; binding-template の instantiate は静的にやっておく
-  (let* ([count arity]
+  ;; pattern-bindings, subgoal-args の instantiation は静的にやっておく
+  (let* ([count 0]
          [return-ix ()]
-         [patbinds (map (^x (map-to <vector>
-                                    (^y (cond [(not y) (inc! count) #f]
-                                              [(integer? y) (+ y arity)]
-                                              [(vector-ref args (car y)) (car y)]
-                                              [else (push! return-ix count)
-                                                    (inc! count)
-                                                    #f]))
-                                    x))
-                        pattern-bindings)]
-         [subargs (map (^x (map-to <vector>
-                                   (^y (cond [(not y) (inc! count 2) #f]
-                                             [(integer? y) (+ y arity)]
-                                             [(vector-ref args (car y)) (car y)]
-                                             [else (push! return-ix (+ 1 count))
-                                                   (inc! count 2)
-                                                   #f]))
-                                   x))
-                       subgoal-args)]
-         [pp (apply seq% (append! (map (^(p b) (match-component% p b)) patterns patbinds)
-                                  (map (^(s a) (type-check% s a)) subgoals subargs)))])
-    (set! return-ix (reverse! return-ix))
+         [patbinds
+          (map (^x (let1 count-base count
+                     (map-to <vector>
+                             (^y (cond [(not y) (inc! count) #f]
+                                       [(integer? y) (- y count-base)]
+                                       [(vector-ref args (car y)) (- (car y) arity count-base)]
+                                       [else (push! return-ix count) (inc! count) #f]))
+                             x)))
+               pattern-bindings)]
+         [subargs
+          (map (^x (let1 count-base count
+                     (map-to <vector>
+                             (^y (cond [(not y) (inc! count 2) #f]
+                                       [(integer? y) (- y count-base)]
+                                       [(vector-ref args (car y)) (- (car y) arity count-base)]
+                                       [else (push! return-ix (+ 1 count)) (inc! count 2) #f]))
+                             x)))
+               subgoal-args)]
+         [pp
+          (apply seq% (append! (map (^(p b) (match-component% p b)) patterns patbinds)
+                               (map (^(s a) (type-check% s a #t)) subgoals subargs)))])
+    (set! return-ix (reverse! (map (^x (- x count)) return-ix)))
     ;; ここから部分手続き
-    (lambda% (proc known-atoms lstack pstack type-env)
+    (lambda% (proc known-atoms lstack pstack type-env :optional [reuse-known-atoms #f])
       (let1 newlstack (make-stack)
         ;; newlstack に引数を push
         (dotimes (i arity)
@@ -144,7 +146,55 @@
                         (stack-push! lstack (stack-ref newlstack ix)))
                       (cond [(next proc known-atoms lstack pstack type-env) => identity]
                             [else (stack-pop-until! lstack lstack-state) #f]))))
-         :next next proc (atomset-copy known-atoms) newlstack (make-stack) type-env)))))
+         :next next proc (if reuse-known-atoms known-atoms (atomset-copy known-atoms))
+         newlstack (make-stack) type-env)))))
+
+;; [pattern-bindings, subgoal-args の instantiation 処理]
+;;
+;; ５価の型で、
+;; - テンプレートの引数が '([#f #f (1)] [(4)] [#f #f (3)])
+;; - 型検査の引数が '([(0) 1 (2) 3 #f])
+;;
+;; なものに #(#f 0 #f 1 #f) を渡す
+;;
+;; 初期状態のスタックは
+;;
+;; -5 -4 -3 -2 -1
+;; #f a1 #f a3 #f
+;; =======5======
+;;
+;;                 l0 l1
+;; [#f #f (1)] は [#f #f (- 1 5)] と展開されて、マッチ後のスタックは
+;;
+;; -7 -6 -5 -4 -3 -2 -1
+;; #f a1 #f a3 #f l0 l1
+;; =======5====== --2--
+;;
+;;           l2
+;; [(4)] は [#f] と展開されて、戻り値リストに 2 が push される。マッ
+;; チ後のスタックは
+;;
+;; -8 -7 -6 -5 -4 -3 -2 -1
+;; #f a1 #f a3 #f l0 l1 l2
+;; =======5====== ----3---
+;;
+;;                 l3 l4
+;; [#f #f (3)] は [#f #f (- (- 3 5) 3)] と展開されて、マッチ後のスタッ
+;; クは
+;;
+;; -0 -9 -8 -7 -6 -5 -4 -3 -2 -1
+;; #f a1 #f a3 #f l0 l1 l2 l3 l4
+;; =======5====== -------5------
+;;
+;;                   l5         l6         l7
+;; [(0) 1 (2) 3] は [#f (- 1 5) #f (- 3 5) #f] と展開されて、戻り値リス
+;; トに 5, 6 が push される。型検査後のスタックは
+;;
+;; -2 -1 -2 -0 -9 -8 -7 -6 -5 -4 -3 -2 -1
+;; #f a1 #f a3 #f l0 l1 l2 l3 l4 l5 l6 l7
+;; =======5====== ------------8----------
+;;
+;; 戻り値リスト (6 5 2) からそれぞれ 8 を引いて反転すると (-6 -3 -2)
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
@@ -160,11 +210,11 @@
     (error "(type-check) wrong number of arguments"))
   (let ([arg1 (vector-ref args 0)] [arg2 (vector-ref args 1)])
     (cond [(and arg1 arg2)
-           (lambda% (proc known-atoms lstack pstack type-env)
+           (lambda% (proc known-atoms lstack pstack type-env :optional _)
              (and (port-connected? (stack-ref lstack arg1) (stack-ref lstack arg2))
                   (next proc known-atoms lstack pstack type-env)))]
           [(or arg1 arg2)
-           => (^a (lambda% (proc known-atoms lstack pstack type-env)
+           => (^a (lambda% (proc known-atoms lstack pstack type-env :optional _)
                     (let1 port (stack-ref lstack a)
                       (stack-push! lstack (port-partner port))
                       (stack-push! lstack port))

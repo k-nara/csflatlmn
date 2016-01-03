@@ -3,7 +3,6 @@
 (add-load-path ".")
 
 (use lmn.util.debug)
-(set! *debug* #t)
 
 (use lmn.util.stack)
 (use lmn.util.pp)
