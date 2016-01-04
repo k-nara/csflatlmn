@@ -48,8 +48,10 @@
 
 ;; １つ以上の部分手続きを :next で連結して、これらを順に実行する新しい
 ;; 部分手続きをつくる。
-(define (seq% fn :rest fns)
-  (if (null? fns) fn (-cons% fn (apply seq% fns))))
+(define (seq% :rest fns)
+  (cond [(null? fns) (lambda% x (apply next x))]
+        [(null? (cdr fns)) (car fns)]
+        [else (-cons% (car fns) (apply seq% (cdr fns)))]))
 
 ;; いくつかの部分手続きから、これらを上から順に試して初めて得られた
 ;; non-#f な値を返す部分手続きを作る。 non-#f な値が得られなければ#f を
