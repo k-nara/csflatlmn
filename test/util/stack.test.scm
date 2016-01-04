@@ -17,6 +17,8 @@
 (stack-push! stack 'c)
 (stack-push! stack 'd)
 
+(define stack2 (stack-copy stack))
+
 (test* "stack-empty? (2)" #f (stack-empty? stack))
 (test* "stack-length" 4 (stack-length stack))
 (test* "stack-ref (1)" 'c (stack-ref stack 2))
@@ -40,6 +42,14 @@
 (stack-pop! stack 2)
 
 (test* "stack-pop!" 1 (stack-length stack))
+
+(test* "stack-copy (1)" 4 (stack-length stack2))
+(test* "stack-copy (2)" 'b (stack-ref stack2 1))
+
+(stack-push! stack2 'x)
+
+(test* "stack-copy (3)" 5 (stack-length stack2))
+(test* "stack-copy (4)" 1 (stack-length stack))
 
 ;; ----------------------
 
