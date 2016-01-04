@@ -29,13 +29,13 @@
 (test* "stack-set! (1)" 'hoge (stack-ref stack -2))
 (test* "stack-set! (2)" 'fuga (stack-ref stack 3))
 
-(stack-pop-until! stack 2)
+(stack-set-length! stack 2)
 
-(test* "stack-pop-until! (1)" 2 (stack-length stack))
+(test* "stack-set-length! (1)" 2 (stack-length stack))
 
 (stack-push! stack 'x)
 
-(test* "stack-pop-until! (2)" 'x (stack-ref stack 2))
+(test* "stack-set-length! (2)" 'x (stack-ref stack 2))
 
 (stack-pop! stack 2)
 

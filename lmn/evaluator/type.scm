@@ -145,7 +145,7 @@
                         (stack-push! lstack (port-partner (stack-ref newlstack ix)))
                         (stack-push! lstack (stack-ref newlstack ix)))
                       (cond [(next proc known-atoms lstack tc-lstack pstack type-env) => identity]
-                            [else (stack-pop-until! lstack lstack-state) #f]))))
+                            [else (stack-set-length! lstack lstack-state) #f]))))
          :next next proc (if top-level? (atomset-copy known-atoms) known-atoms)
          newlstack #f (make-stack) type-env)))))
 

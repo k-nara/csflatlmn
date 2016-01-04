@@ -212,7 +212,7 @@
                     (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
                       (succeed res))
                     ;; next が失敗 -> スタックの状態を元に戻す
-                    (stack-pop-until! lstack orig-length)
+                    (stack-set-length! lstack orig-length)
                     (stack-pop! pstack)))
                 ;; (fail を呼ぶとここに来る) known-atoms を元に戻して次のイテレーションへ
                 (atomset-map-atoms (cut atomset-remove-atom! known-atoms <>) newproc))))
