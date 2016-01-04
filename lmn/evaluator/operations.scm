@@ -35,14 +35,14 @@
 ;; から取り除き、 next を呼び出す。 next の戻り値がそのまま全体の戻り値
 ;; になる(next が #fを返しても、破壊した PROC が元に戻ることはないこと
 ;; に注意する)。
-(define% ((remove-processes!% indices) proc known-atoms lstack pstack type-env)
+(define% ((remove-processes!% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (dolist (ix indices)
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
-  (next proc known-atoms lstack pstack type-env))
+  (next proc known-atoms lstack tc-lstack pstack type-env))
 
 ;; ---- instantiate-process!%
 
-(define% ((instantiate-process!% trees) proc known-atoms lstack pstack type-env)
+(define% ((instantiate-process!% trees) proc known-atoms lstack tc-lstack pstack type-env)
   (let1 pending-ports (make-hash-table 'eq?)
     (dolist (tree trees)
       (let loop ([tree tree] [parent #f])
@@ -68,7 +68,7 @@
                    (inc! ix))
                  (when parent
                    (port-connect! parent (process-port newproc ix))))])))
-    (next proc known-atoms lstack pstack type-env)))
+    (next proc known-atoms lstack tc-lstack pstack type-env)))
 
 ;; ---- match-component%
 
@@ -147,7 +147,7 @@
               (port-atom (atomset-port pat pat-head-index))
               (atomset-find-atom pat))])
     ;; (ここから関数本体)
-    (lambda% (proc known-atoms lstack pstack type-env)
+    (lambda% (proc known-atoms lstack tc-lstack pstack type-env)
       (let1 atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
           (if-let1 given-atom
               (and pat-head-index
@@ -209,7 +209,7 @@
                     (dotimes (i arity)
                       (unless (vector-ref indices i)
                         (stack-push! lstack (atomset-arg newproc i))))
-                    (if-let1 res (next proc known-atoms lstack pstack type-env)
+                    (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
                       (succeed res))
                     ;; next が失敗 -> スタックの状態を元に戻す
                     (stack-pop-until! lstack orig-length)
@@ -292,7 +292,7 @@
 ;; 出す対象の部分プロセスが存在するとき、その部分プロセスの各引数の指す
 ;; アトムがすべて KNOWN-ATOMS に含まれていることを仮定する。そうでない
 ;; 場合、この関数の挙動は信頼できない。
-(define% ((traverse-context% indices) proc known-atoms lstack pstack type-env)
+(define% ((traverse-context% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
          [pending-ports (map (^(n m) (cons (stack-ref lstack n) m)) indices (iota arity))])
@@ -340,7 +340,7 @@
         ;; (トラバース終了)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
-        (if-let1 res (next proc known-atoms lstack pstack type-env)
+        (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
           (succeed res))
         (stack-pop! pstack))
       ;; (fail を呼ぶとここに来る) known-atoms を元に戻して #f を返す
