@@ -1,7 +1,7 @@
 (define-module lmn.util.stack
   (export <stack> *stack-allocation-unit*
-          make-stack stack-push! stack-pop! stack-set-length! stack-length
-          stack-empty? stack-ref stack-set!))
+          make-stack stack-copy stack-push! stack-pop! stack-set-length!
+          stack-length stack-empty? stack-ref stack-set!))
 
 (select-module lmn.util.stack)
 
@@ -21,6 +21,11 @@
 ;; スタックを作成する。
 (define (make-stack)
   (make <stack> :data (make-vector *stack-allocation-unit*) :length 0))
+
+;; STACK の浅いコピーを作る。 STACK の中に含まれる要素まではコピーされ
+;; ない。
+(define (stack-copy stack)
+  (make <stack> :data (vector-copy (slot-ref stack 'data)) :length (slot-ref stack 'length)))
 
 ;; STACK に含まれる要素の数を返す。
 (define (stack-length stack)
