@@ -461,10 +461,8 @@
            '(("t" ("b" ("b" ("b" ("b" ("x") ("x")) ("x")) ("a" ("x") ("x"))) ("x")))))]
       [matcher (seq% (match-component% (sexp->atomset '(("t" 0))) #(#f))
                      (type-check% "t2" #(0)))])
-  (test* "match result (success)"
-         #t (matcher p1 (make-atomset) (make-stack) #f (make-stack) test-env4) boolean-equal?)
-  (test* "match result (failure)"
-         #f (matcher p2 (make-atomset) (make-stack) #f (make-stack) test-env4)))
+  (test* "match success" p1 (matcher p1 (make-atomset) (make-stack) #f (make-stack) test-env4))
+  (test* "match failure" #f (matcher p2 (make-atomset) (make-stack) #f (make-stack) test-env4)))
 
 ;; ----------------------
 
@@ -494,12 +492,9 @@
       [matcher (seq% (match-component% (sexp->atomset '(("x" 0))) #(#f))
                      (match-component% (sexp->atomset '(("y" 0))) #(#f))
                      (type-check% "a" #(0 1)))])
-  (test* "match result (success)"
-         #t (matcher p1 (make-atomset) (make-stack) #f (make-stack) test-env5) boolean-equal?)
-  (test* "match result (failure 1)"
-         #f (matcher p2 (make-atomset) (make-stack) #f (make-stack) test-env5))
-  (test* "match result (failure 2)"
-         #f (matcher p3 (make-atomset) (make-stack) #f (make-stack) test-env5)))
+  (test* "match success" p1 (matcher p1 (make-atomset) (make-stack) #f (make-stack) test-env5))
+  (test* "match failure (1)" #f (matcher p2 (make-atomset) (make-stack) #f (make-stack) test-env5))
+  (test* "match failure (2)" #f (matcher p3 (make-atomset) (make-stack) #f (make-stack) test-env5)))
 
 ;; ----------------------
 
