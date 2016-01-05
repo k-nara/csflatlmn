@@ -100,11 +100,9 @@
            (let ([lstack-initial-length (stack-length lstack)]
                  [local-stack (stack-copy lstack)])
              ;; グローバルスタックを準備
-             (let* ([count-retvals (rlet1 c 0 (map (^x (unless x (inc! c 2))) args))]
-                    [ix (- count-retvals)]
-                    [args (map-to <vector>
-                                  (^n (or n (begin0 (cons ix (+ ix 1)) (inc! ix 2)))) args)])
-               (stack-set-length! lstack (+ count-retvals lstack-initial-length))
+             (let* ([ix lstack-initial-length]
+                    [args (map-to <vector> (^n (or n (begin0 (cons ix (+ ix 1)) (inc! ix 2)))) args)])
+               (stack-set-length! lstack ix)
                ;; 型定義を呼び出して、失敗したらグローバルスタックを元に戻す
                (cond [((type args)
                        :next (^(proc _ local-stack global-stack _ type-env)
@@ -131,89 +129,92 @@
 ;; が成功するようなポートの候補が複数ある場合がある。まだ候補が残ってい
 ;; るときに next が #fを返した場合、別の候補を TC-LSTACK にセットし、ふ
 ;; たたび next を呼び出す。
-(define ((make-type-rule arity patterns pattern-bindings subgoals subgoal-args) args)
+(define% (((make-type-rule arity patterns pattern-bindings subgoals subgoal-args) args)
+          proc known-atoms local-stack global-stack pstack type-env)
   ;; 引数の数を確認
   (unless (= arity (vector-length args))
     (error "(type-check) wrong number of arguments"))
-  ;; pattern-bindings, subgoal-args の instantiation は静的にやっておく
-  (let* ([count 0]
+  ;; pattern-bindings, subgoal-args を local-stack と args で instantiate
+  (let* ([lstack-base (stack-length local-stack)]
+         [lstack-head lstack-base]
          [return-ix ()]
          [patbinds
-          (map (^x (let1 count-base count
-                     (map-to <vector>
-                             (^y (cond [(not y) (inc! count) #f]
-                                       [(integer? y) (- y count-base)]
-                                       [else
-                                        (let1 arg (vector-ref args (car y))
-                                          (cond [(not (integer? arg))
-                                                 (push! return-ix (cons count arg))
-                                                 (inc! count)
-                                                 #f]
-                                                [(< arg 0) (- arg count-base)]
-                                                [else arg]))]))
-                             x)))
-               pattern-bindings)]
-         [return-ix (reverse! (map (^x (dec! (car x) count) x) return-ix))]
-         [subargs
           (map (^x (map-to <vector>
-                           (^y (cond [(integer? y) (- y count)]
+                           (^y (cond [(not y) (inc! lstack-head) #f]
+                                     [(integer? y) (+ y lstack-base)]
                                      [else
                                       (let1 arg (vector-ref args (car y))
-                                        (cond [(and (integer? arg) (< arg 0)) (- arg count)]
+                                        (cond [(not (integer? arg))
+                                               (push! return-ix (cons lstack-head arg))
+                                               (inc! lstack-head)
+                                               #f]
                                               [else arg]))]))
                            x))
+               pattern-bindings)]
+         [subargs
+          (map (^x (map-to <vector> (^y (cond [(integer? y) (+ y lstack-base)]
+                                              [else (vector-ref args (car y))]))
+                           x))
                subgoal-args)])
-    (seq%
-     (apply seq% (map (^(p b) (match-component% p b)) patterns patbinds))
-     (lambda% (proc known-atoms local-stack global-stack pstack type-env)
-       (dolist (ix return-ix)
-         (stack-set! global-stack (cadr ix) (port-partner (stack-ref local-stack (car ix))))
-         (stack-set! global-stack (cddr ix) (stack-ref local-stack (car ix))))
-       (next proc known-atoms local-stack global-stack pstack type-env))
-     (apply seq% (map (^(s a) (type-check% s a)) subgoals subargs)))))
+    (set! return-ix (reverse! return-ix))
+    ((seq%
+      (apply seq% (map (^(p b) (match-component% p b)) patterns patbinds))
+      (lambda% (proc known-atoms local-stack global-stack pstack type-env)
+        (dolist (ix return-ix)
+          (stack-set! global-stack (cadr ix) (port-partner (stack-ref local-stack (car ix))))
+          (stack-set! global-stack (cddr ix) (stack-ref local-stack (car ix))))
+        (next proc known-atoms local-stack global-stack pstack type-env))
+      (apply seq% (map (^(s a) (type-check% s a)) subgoals subargs)))
+     :next next proc known-atoms local-stack global-stack pstack type-env)))
 
 ;; [pattern-bindings, subgoal-args の instantiation 処理]
 ;;
 ;; ５価の型で、
-;; - テンプレートの引数が '([#f #f (1)] [(4)] [#f #f (3)])
-;; - 型検査の引数が '([(0) 1 (2) 3])
+;; - テンプレートの引数が '([#f #f (1)] [(4)] [0 #f #f (3)])
+;; - 型検査の引数が '([(0) 1 (2) 3] [4])
 ;;
 ;; に ARGS = [(0 . 1) 2 (2 . 3) 1 (4 . 5)] を与える場合
 ;;
 ;; 初期状態のスタックを以下として
 ;;
-;;  0 +1 +2 +3
-;; xx a3 a1 xx
-;; =====5=====
+;;  0  1  2  3 ... n-1
+;; xx a3 a1 xx ...  xx
 ;;
 ;;                 l0 l1
 ;; [#f #f (1)] は [#f #f 2] と展開されて、マッチ後のスタックは
 ;;
-;;  0 +1 +2 +3 -2 -1
-;; xx a3 a1 xx l0 l1
-;; =====4===== --2--
+;;  0  1  2  3 ... n-1 +0 +1
+;; xx a3 a1 xx      xx l0 l1
+;;                     --2--
 ;;
 ;;           l2
-;; [(4)] は [#f] と展開されて、戻り値リストに (2 . (4 . 5)) が push さ
-;; れる。マッチ後のスタックは
+;; [(4)] は [#f] と展開されて、戻り値リストに (n+2 . (4 . 5)) が
+;; push される。マッチ後のスタックは
 ;;
-;;  0 +1 +2 +3 -3 -2 -1
-;; xx a3 a1 xx l0 l1 l2
-;; =====4===== ----3---
+;;  0  1  2  3 ... n-1 +0 +1 +2
+;; xx a3 a1 xx      xx l0 l1 l2
+;;                     ----3---
 ;;
-;;                 l3 l4
-;; [#f #f (3)] は [#f #f 1] と展開されて、マッチ後のスタックは
+;;                       l3 l4
+;; [0 #f #f (3)] は [n+0 #f #f 1] と展開されて、マッチ後のスタックは
 ;;
-;;  0 +1 +2 +3 -5 -4 -3 -2 -1
-;; xx a3 a1 xx l0 l1 l2 l3 l4
-;; =====4===== -------5------
+;;  0  1  2  3 ... n-1 +0 +1 +2 +3 +4
+;; xx a3 a1 xx      xx l0 l1 l2 l3 l4
+;;                     -------5------
 ;;
-;; 戻り値リスト ((2 . (4 . 5))) の各 car 部 (2) からそれぞれ 5 引いて
-;; ((-3 . (4 . 5))) に (これは、マッチがすべて終了したとき、 lstack の
-;; -3 番目が tc-lstack の 4 番目に、そのパートナーが 5 番目にセットされ
-;; るべきであることを示す) 。
+;; マッチがすべて終了したら、戻り値リストにしたがって tc-lstack に
+;; lstack のポートとそのパートナーを移す。たとえば戻り値リストの (n+2
+;; . (4 . 5)) は lstack の 2+n 番目を tc-lstack の 4 番目に、そのパート
+;; ナーを 5 番目にセットの意味。
 ;;
-;; [(0) 1 (2) 3] は [(0 . 1) (- 1 5) (2 . 3) (- 3 5)] と展開される。
+;; [(0) 1 (2) 3] は [(0 . 1) n+1 (2 . 3) n+3] と展開される。マッチ後の
+;; スタックは
+;;
+;;  0  1  2  3 ... n-1 +0 +1 +2 +3 +4 ... k-1
+;; xx a3 a1 xx      xx l0 l1 l2 l3 l4 ...  xx
+;;                     -------5------
+;;
+;; [4] は [n+4] に展開される。
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
