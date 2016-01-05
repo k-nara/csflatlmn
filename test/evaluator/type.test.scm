@@ -469,29 +469,29 @@
 (test-section "user-defined type (5) mutually recursive types")
 
 ;; a から始まって、 a, b が交互にいくつか並んだあと、 b で終わる紐
-;; typedef a(H, T) { H= a(H2) :- b(H2, T). }
-;; typedef b(H, T) { H= b(T) . H= b(H2) :- a(H2, T). }
+;; typedef a(T, H) { H= a(H2) :- b(T, H2). }
+;; typedef b(T, H) { H= b(T). H= b(H2) :- a(T, H2). }
 
 (define type-a
   (make-type
-   (make-type-rule 2 `(,(sexp->atomset '(("a" 0 1)))) '([#f (0)]) '("b") '([0 (1)]))))
+   (make-type-rule 2 `(,(sexp->atomset '(("a" 0 1)))) '([#f (1)]) '("b") '([(0) 0]))))
 
 (define type-b
   (make-type
    (make-type-rule 2 `(,(sexp->atomset '(("b" 0 1)))) '([(0) (1)]) () ())
-   (make-type-rule 2 `(,(sexp->atomset '(("b" 0 1)))) '([#f (0)]) '("a") '([0 (1)]))))
+   (make-type-rule 2 `(,(sexp->atomset '(("b" 0 1)))) '([#f (1)]) '("a") '([(0) 0]))))
 
 (define test-env5
   (rlet1 env (make-hash-table 'string=?)
-    (hash-table-put! env "b" type-a)
-    (hash-table-put! env "a" type-b)))
+    (hash-table-put! env "a" type-a)
+    (hash-table-put! env "b" type-b)))
 
 (let ([p1 (sexp->atomset '(("x" ("a" ("b" ("a" ("b" ("a" ("b" ("a" ("b" ("y"))))))))))))]
       [p2 (sexp->atomset '(("x" ("a" ("b" ("a" ("a" ("a" ("b" ("a" ("b" ("y"))))))))))))]
       [p3 (sexp->atomset '(("x" ("a" ("b" ("a" ("a" ("a" ("b" ("a" ("a" ("y"))))))))))))]
       [matcher (seq% (match-component% (sexp->atomset '(("x" 0))) #(#f))
                      (match-component% (sexp->atomset '(("y" 0))) #(#f))
-                     (type-check% "a" #(0 1)))])
+                     (type-check% "a" #(1 0)))])
   (test* "match success" p1 (matcher p1 (make-atomset) (make-stack) #f (make-stack) test-env5))
   (test* "match failure (1)" #f (matcher p2 (make-atomset) (make-stack) #f (make-stack) test-env5))
   (test* "match failure (2)" #f (matcher p3 (make-atomset) (make-stack) #f (make-stack) test-env5)))
