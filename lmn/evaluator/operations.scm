@@ -342,6 +342,7 @@
         (stack-push! pstack newproc)
         (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
           (succeed res))
+        ;; next が失敗 -> pstack を元に戻す
         (stack-pop! pstack))
       ;; (fail を呼ぶとここに来る) known-atoms を元に戻して #f を返す
       (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
