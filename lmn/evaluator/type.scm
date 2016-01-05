@@ -18,12 +18,7 @@
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結NG, subgoal-args の制約から)
 ;; *NOTE* 探索深さを制限する引数を追加すれば反復深化にすることもできる (必要があるか？)
 
-;; *NOTE* make-type-rule が静的な処理と動的な処理を分けているのに生かせていない
-;;        -> type-rule の作成時に eager に type-check% を呼んでいるのが問題
-;;           相互再帰的な型を認めるのに型名の動的束縛が一番お手軽なので仕方ないかも
-
-;; *TODO* make-type-rule は args についてメモ化した方がいい？
-;; *TODO* TC-LSTACK 引数の実装が後付けとはいえ汚いので整理する
+;; *TODO* TC-LSTACK 引数まわりのの実装が後付けとはいえ汚いので整理する
 
 ;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれる
 
