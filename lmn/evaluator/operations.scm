@@ -65,8 +65,8 @@
                    (loop subtree (process-port newproc ix))
                    (inc! ix))
                  (when parent
-                   (port-connect! parent (process-port newproc ix))))])))
-    (next proc known-atoms lstack tc-lstack pstack type-env)))
+                   (port-connect! parent (process-port newproc ix))))]))))
+  (next proc known-atoms lstack tc-lstack pstack type-env))
 
 ;; ---- match-component%
 
@@ -128,8 +128,7 @@
 ;; の要素が #f の場合は任意のポートがマッチし、next を呼び出す前にマッ
 ;; チした部分プロセスの第 K 引数 が LSTACKにプッシュされる。 #f がベク
 ;; タ中に複数存在する場合は、K の小さい順にプッシュされる。
-(define (match-component% pat indices)
-  ;; (静的に計算できるものは静的に計算しておく)
+(define% ((match-component% pat indices) proc known-atoms lstack tc-lstack pstack type-env)
   (let* ([arity ;; 探したいプロセスの価数
           (atomset-arity pat)]
          [pat-head-index ;; indices の #f でない適当な要素のインデックス
@@ -140,79 +139,78 @@
          [pat-head ;; pat の中で、探索の始点にするアトム
           (if pat-head-index
               (port-atom (atomset-port pat pat-head-index))
-              (atomset-find-atom pat))])
-    ;; (ここから関数本体)
-    (lambda% (proc known-atoms lstack tc-lstack pstack type-env)
-      (let1 atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
-          (if-let1 given-atom
-              (and pat-head-index
-                   (port-atom (stack-ref lstack (vector-ref indices pat-head-index))))
-            (lambda () (begin0 given-atom (set! given-atom #f)))
-            (atomset-get-iterator proc (atom-functor pat-head)))
-        (let/cc succeed
-          (while (atom-iter) => proc-head
-            (unless (atomset-member known-atoms proc-head) ;; すでに他に取られていたら失敗
-              (let ([atom-mapping (make-hash-table 'equal?)] ;; pat内のアトム -> proc内のアトム
-                    [newproc (make-atomset arity)])
-                (let/cc fail
-                  (let loop ([proc-atom proc-head] [pat-atom pat-head])
-                    ;; 名前・アリティをお手本と比較 -> 失敗したら fail
-                    (unless (string=? (atom-functor proc-atom) (atom-functor pat-atom))
-                      (fail #f))
-                    ;; アトムを newproc, known-atoms に追加して、マッピングを記憶
-                    (atomset-add-atom! newproc proc-atom)
-                    (atomset-add-atom! known-atoms proc-atom)
-                    (hash-table-put! atom-mapping pat-atom proc-atom)
-                    ;; proc-atom の各引数を処理
-                    (dotimes (ix (atom-arity proc-atom))
-                      (let* ([proc-arg (atom-arg proc-atom ix)]
-                             [proc-arg-atom (port-atom proc-arg)]
-                             [pat-arg (atom-arg pat-atom ix)]
-                             [pat-arg-atom (and (not (undefined? pat-arg)) (port-atom pat-arg))])
-                        (cond
-                         ;; 1. pat のポートに来た -> indices と比較して正しいポートか確認
-                         [(not (and pat-arg-atom (atomset-member pat pat-arg-atom)))
-                          (let ([port-index ;; pat の何番目のポートか？
-                                 (-rassoc-port-ix pat (atom-port pat-atom ix))]
-                                [proc-port ;; proc-atom の ix 番目のポート
-                                 (atom-port proc-atom ix)])
-                            ;; ポートが指定されていて、かつマッチしない -> fail
-                            (when (and-let* ([stack-index (vector-ref indices port-index)])
-                                    (not (port=? proc-port (stack-ref lstack stack-index))))
-                              (fail #f))
-                            ;;成功 -> newproc にポートをセット
-                            (atomset-set-port! newproc port-index proc-port))]
-                         ;; 2. arg の指しているポートのインデックスが異なる -> fail
-                         [(not (= (port-ix proc-arg) (port-ix pat-arg)))
-                          (fail #f)]
-                         ;; 3. 次のアトムがすでに探索済 -> 正しいアトムに繋がっているかだけ確認
-                         [(atomset-member newproc proc-arg-atom)
-                          (unless (and-let* ([corresponding-atom
-                                              (hash-table-get atom-mapping pat-arg-atom #f)])
-                                    (atom=? proc-arg-atom corresponding-atom))
-                            (fail #f))]
-                         ;; 4. 次のアトムも探索対象範囲内にある -> 再帰的にトラバース
-                         [(and (atomset-member proc proc-arg-atom)
-                               (not (atomset-member known-atoms proc-arg-atom)))
-                          (loop proc-arg-atom pat-arg-atom)]
-                         ;; 5. ポートでも循環でもなく、探索対象の範囲外につながっている -> fail
-                         [else
-                          (fail #f)]))))
-                  ;; トラバース成功終了 -> stack にプッシュして next を呼ぶ
-                  (let1 orig-length (stack-length lstack)
-                    (stack-push! pstack newproc)
-                    (dotimes (i arity)
-                      (unless (vector-ref indices i)
-                        (stack-push! lstack (atomset-arg newproc i))))
-                    (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
-                      (succeed res))
-                    ;; next が失敗 -> スタックの状態を元に戻す
-                    (stack-set-length! lstack orig-length)
-                    (stack-pop! pstack)))
-                ;; (fail を呼ぶとここに来る) known-atoms を元に戻して次のイテレーションへ
-                (atomset-map-atoms (cut atomset-remove-atom! known-atoms <>) newproc))))
-          ;; 全てのイテレーションが失敗
-          #f)))))
+              (atomset-find-atom pat))]
+         [given-atom ;; 与えられた始点
+          (and pat-head-index
+               (port-atom (stack-ref lstack (vector-ref indices pat-head-index))))]
+         [atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
+          (if given-atom
+              (lambda () (begin0 given-atom (set! given-atom #f)))
+              (atomset-get-iterator proc (atom-functor pat-head)))])
+    (let/cc succeed
+      (while (atom-iter) => proc-head
+        (unless (atomset-member known-atoms proc-head) ;; すでに他に取られていたら失敗
+          (let ([atom-mapping (make-hash-table 'equal?)] ;; pat内のアトム -> proc内のアトム
+                [newproc (make-atomset arity)])
+            (let/cc fail
+              (let loop ([proc-atom proc-head] [pat-atom pat-head])
+                ;; 名前・アリティをお手本と比較 -> 失敗したら fail
+                (unless (string=? (atom-functor proc-atom) (atom-functor pat-atom))
+                  (fail #f))
+                ;; アトムを newproc, known-atoms に追加して、マッピングを記憶
+                (atomset-add-atom! newproc proc-atom)
+                (atomset-add-atom! known-atoms proc-atom)
+                (hash-table-put! atom-mapping pat-atom proc-atom)
+                ;; proc-atom の各引数を処理
+                (dotimes (ix (atom-arity proc-atom))
+                  (let* ([proc-arg (atom-arg proc-atom ix)]
+                         [proc-arg-atom (port-atom proc-arg)]
+                         [pat-arg (atom-arg pat-atom ix)]
+                         [pat-arg-atom (and (not (undefined? pat-arg)) (port-atom pat-arg))])
+                    (cond
+                     ;; 1. pat のポートに来た -> indices と比較して正しいポートか確認
+                     [(not (and pat-arg-atom (atomset-member pat pat-arg-atom)))
+                      (let ([port-index ;; pat の何番目のポートか？
+                             (-rassoc-port-ix pat (atom-port pat-atom ix))]
+                            [proc-port ;; proc-atom の ix 番目のポート
+                             (atom-port proc-atom ix)])
+                        ;; ポートが指定されていて、かつマッチしない -> fail
+                        (when (and-let* ([stack-index (vector-ref indices port-index)])
+                                (not (port=? proc-port (stack-ref lstack stack-index))))
+                          (fail #f))
+                        ;;成功 -> newproc にポートをセット
+                        (atomset-set-port! newproc port-index proc-port))]
+                     ;; 2. arg の指しているポートのインデックスが異なる -> fail
+                     [(not (= (port-ix proc-arg) (port-ix pat-arg)))
+                      (fail #f)]
+                     ;; 3. 次のアトムがすでに探索済 -> 正しいアトムに繋がっているかだけ確認
+                     [(atomset-member newproc proc-arg-atom)
+                      (unless (and-let* ([corresponding-atom
+                                          (hash-table-get atom-mapping pat-arg-atom #f)])
+                                (atom=? proc-arg-atom corresponding-atom))
+                        (fail #f))]
+                     ;; 4. 次のアトムも探索対象範囲内にある -> 再帰的にトラバース
+                     [(and (atomset-member proc proc-arg-atom)
+                           (not (atomset-member known-atoms proc-arg-atom)))
+                      (loop proc-arg-atom pat-arg-atom)]
+                     ;; 5. ポートでも循環でもなく、探索対象の範囲外につながっている -> fail
+                     [else
+                      (fail #f)]))))
+              ;; トラバース成功終了 -> stack にプッシュして next を呼ぶ
+              (let1 orig-length (stack-length lstack)
+                (stack-push! pstack newproc)
+                (dotimes (i arity)
+                  (unless (vector-ref indices i)
+                    (stack-push! lstack (atomset-arg newproc i))))
+                (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
+                  (succeed res))
+                ;; next が失敗 -> スタックの状態を元に戻す
+                (stack-set-length! lstack orig-length)
+                (stack-pop! pstack)))
+            ;; (fail を呼ぶとここに来る) known-atoms を元に戻して次のイテレーションへ
+            (atomset-map-atoms (cut atomset-remove-atom! known-atoms <>) newproc))))
+      ;; 全てのイテレーションが失敗
+      #f)))
 
 ;; [direct link に対するパターンマッチがなぜ必要ないか？]
 ;;
