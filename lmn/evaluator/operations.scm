@@ -26,6 +26,7 @@
 ;; *TODO* プロセスやアトムの再利用を実装すべき
 ;; *TODO* -rassoc-port-ix はデータ構造の工夫で O(1) にしたい？
 ;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙？
+;; *TODO* traverse-context% が port と arg を両方扱うのに闇を感じる (本当にバグがないかよく検証する)
 
 ;; ---- remove-processes%
 
