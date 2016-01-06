@@ -48,9 +48,8 @@
   (test* "next-args" (list proc known-atoms lstack #f pstack test-env0) next-args)
   (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("e") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack (1)" 3 (stack-length lstack))
+  (test* "lstack (1)" 2 (stack-length lstack))
   (test* "lstack (2)" "e" (atom-name (port-atom (stack-ref lstack 1))))
-  (test* "lstack (3)" "f" (atom-name (port-atom (stack-ref lstack 2))))
   (test* "pstack" 1 (stack-length pstack)))
 
 (test-section "type-subr-link rejected")
@@ -152,9 +151,8 @@
   (test* "next-args" (list proc known-atoms lstack #f pstack test-env1) next-args)
   (test* "proc" '("a" "c" "x" "y") (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack (1)" 3 (stack-length lstack))
+  (test* "lstack (1)" 2 (stack-length lstack))
   (test* "lstack (2)" "a" (atom-name (port-atom (stack-ref lstack 1))))
-  (test* "lstack (3)" "y" (atom-name (port-atom (stack-ref lstack 2))))
   (test* "pstack" 1 (stack-length pstack)))
 
 ;; ----------------------
@@ -248,7 +246,7 @@
   (test* "next-args" (list proc known-atoms lstack #f pstack test-env2) next-args)
   (test* "proc" '("x" "a" "c" "y" "b") (atomset-map-atoms atom-name proc) (set-equal?))
   (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 3 (stack-length lstack))
+  (test* "lstack" 2 (stack-length lstack))
   (test* "pstack" 1 (stack-length pstack)))
 
 ;; ----------------------
@@ -349,8 +347,10 @@
   (test* "match result"
          #f
          ((seq% (type-check% "t" #(0 #f))
-                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 2))
-                (lambda% _ (push! found-conses (atom-name (port-atom (stack-ref lstack 3)))) #f))
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1))
+                (lambda% _
+                  (push! found-conses (atom-name (port-atom (port-partner (stack-ref lstack 2)))))
+                  #f))
           proc known-atoms lstack #f pstack test-env3))
   (test* "found conses" '("3" "2" "1") found-conses)
   (test* "proc" '("a" "." "1" "." "2" "." "3" "[]")
@@ -368,13 +368,15 @@
   (test* "search result"
          '(2 . 8)
          ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f)) ;; l0
-                (type-check% "t" #(0 #f)) ;; l1/l2
-                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 2)) ;; l3, l4
-                (type-check% "t" #(4 #f)) ;; l5/l6
-                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 6)) ;;l7, l8
+                (type-check% "t" #(0 #f)) ;; l1
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1)) ;; l2, l3
+                (type-check% "t" #(3 #f)) ;; l4
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 4)) ;; l5, l6
                 (lambda% (_ _ lstack _ _ _)
-                  (let ([n1 (string->number (atom-name (port-atom (stack-ref lstack 3))))]
-                        [n2 (string->number (atom-name (port-atom (stack-ref lstack 7))))])
+                  (let ([n1 (string->number
+                             (atom-name (port-atom (port-partner (stack-ref lstack 2)))))]
+                        [n2 (string->number
+                             (atom-name (port-atom (port-partner (stack-ref lstack 5)))))])
                     (and (= (* n1 n2) 16) (cons n1 n2)))))
           proc (make-atomset) (make-stack) #f (make-stack) test-env3)))
 
@@ -387,11 +389,13 @@
   (test* "return value"
          #f
          ((seq% (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f #f)) ;; l0, l1, l2
-                (type-check% "t" #(1 #f)) ;; l3/l4
-                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 4)) ;; l5, l6
+                (type-check% "t" #(1 #f)) ;; l3
+                (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 3)) ;; l4, l5
                 (lambda% (_ _ lstack _ _ _)
-                  (let ([n1 (string->number (atom-name (port-atom (stack-ref lstack 0))))]
-                        [n2 (string->number (atom-name (port-atom (stack-ref lstack 5))))])
+                  (let ([n1 (string->number
+                             (atom-name (port-atom (port-partner (stack-ref lstack 0)))))]
+                        [n2 (string->number
+                             (atom-name (port-atom (port-partner (stack-ref lstack 4)))))])
                     (when (= (* n1 n2) 16)
                       (push! found-results (cons n1 n2)))
                     #f)))

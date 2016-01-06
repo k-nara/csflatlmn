@@ -45,7 +45,7 @@
     (dolist (tree trees)
       (let loop ([tree tree] [parent #f])
         (cond [(integer? tree) ;; arg in lstack
-               (port-connect! parent (port-partner (stack-ref lstack tree)))]
+               (port-connect! parent (stack-ref lstack tree))]
               [(symbol? tree) ;; local link
                (if-let1 port (hash-table-get pending-ports tree #f)
                  (port-connect! parent port)
@@ -122,12 +122,12 @@
 ;; PSTACK を元の状態に戻して別のマッチを探す。マッチする部分プロセスが
 ;; それ以上存在しない場合、PROC, KNOWN-ATOMS, LSTACK, PSTACK には手を付
 ;; けず、たんに #f を返す。 INDICES は PAT の価数と同じ長さのベクタで、
-;; そのそれぞれの要素は #f または自然数でなければならない。ベクタの K番
-;; 目の要素が自然数 N の場合、取り出す部分プロセスの第 K ポートは
+;; そのそれぞれの要素は #f または自然数でなければならない。ベクタの K
+;; 番目の要素が自然数 N の場合、取り出す部分プロセスの第 K 引数は
 ;; LSTACK の N 番目に格納されたポートにマッチしなければならない。K 番目
 ;; の要素が #f の場合は任意のポートがマッチし、next を呼び出す前にマッ
-;; チした部分プロセスの第 K 引数 が LSTACKにプッシュされる。 #f がベク
-;; タ中に複数存在する場合は、K の小さい順にプッシュされる。
+;; チした部分プロセスの第 K ポート が LSTACK にプッシュされる。 #f がベ
+;; クタ中に複数存在する場合は、K の小さい順にプッシュされる。
 (define% ((match-component% pat indices) proc known-atoms lstack tc-lstack pstack type-env)
   (let* ([arity ;; 探したいプロセスの価数
           (atomset-arity pat)]
@@ -142,7 +142,8 @@
               (atomset-find-atom pat))]
          [given-atom ;; 与えられた始点
           (and pat-head-index
-               (port-atom (stack-ref lstack (vector-ref indices pat-head-index))))]
+               (port-atom
+                (port-partner (stack-ref lstack (vector-ref indices pat-head-index)))))]
          [atom-iter ;; pat-head に対応するアトムを proc から取り出すイテレータ
           (if given-atom
               (lambda () (begin0 given-atom (set! given-atom #f)))
@@ -174,9 +175,9 @@
                              (-rassoc-port-ix pat (atom-port pat-atom ix))]
                             [proc-port ;; proc-atom の ix 番目のポート
                              (atom-port proc-atom ix)])
-                        ;; ポートが指定されていて、かつマッチしない -> fail
+                        ;; 引数が指定されていて、かつマッチしない -> fail
                         (when (and-let* ([stack-index (vector-ref indices port-index)])
-                                (not (port=? proc-port (stack-ref lstack stack-index))))
+                                (not (port=? proc-arg (stack-ref lstack stack-index))))
                           (fail #f))
                         ;;成功 -> newproc にポートをセット
                         (atomset-set-port! newproc port-index proc-port))]
@@ -201,7 +202,7 @@
                 (stack-push! pstack newproc)
                 (dotimes (i arity)
                   (unless (vector-ref indices i)
-                    (stack-push! lstack (atomset-arg newproc i))))
+                    (stack-push! lstack (atomset-port newproc i))))
                 (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
                   (succeed res))
                 ;; next が失敗 -> スタックの状態を元に戻す
@@ -275,20 +276,24 @@
 
 ;; PROC からプロセス文脈を１つ切り出す。成功した場合、切り出した部分プ
 ;; ロセスを atomset として PSTACK にプッシュし、またこれに含まれるアト
-;; ムをすべて KNOWN-ATOMS にプッシュしたうえで next を呼び出す。 next
-;; の戻り値が #f の場合、 KNOWN-ATOMS, PROC, PSTACK を元に戻してから
-;; #f を返す。走査に失敗した場合も同様に、 KNOWN-ATOMS, PROC, PSTACK に
-;; は手を付けず、 #f を返す。INDICES は取り出す部分プロセスの価数 (≧１)
-;; と同じ長さのリストで、その要素は "すべて" 自然数でなければならない。
-;; INDICES の第 K 要素が N のとき、切り出す部分プロセスの第 K ポートは
-;; LSTACK の N 番目に格納されたポートになる。効率のため、この関数は切り
-;; 出す対象の部分プロセスが存在するとき、その部分プロセスの各引数の指す
-;; アトムがすべて KNOWN-ATOMS に含まれていることを仮定する。そうでない
-;; 場合、この関数の挙動は信頼できない。
+;; ムをすべて KNOWN-ATOMS にプッシュしたうえで next を呼び出す。 nextの
+;; 戻り値が #f の場合、 KNOWN-ATOMS, PROC, PSTACK を元に戻してから#f を
+;; 返す。走査に失敗した場合も同様に、 KNOWN-ATOMS, PROC, PSTACK には手
+;; を付けず、 #f を返す。INDICES は取り出す部分プロセスの価数 (≧１) と
+;; 同じ長さのリストで、その要素は自然数か自然数一つからなるリストでなけ
+;; ればならない。INDICES の第 K 要素が自然数 N のとき、切り出す部分プロ
+;; セスの第 K 引数はLSTACK の N 番目に格納されたポートになる。 自然数の
+;; リスト (M) の場合、第 K "ポート"が M 番目に格納されたポートになる。
+;; 効率のため、この関数は切り出す対象の部分プロセスが存在するとき、その
+;; 部分プロセスの各引数の指すアトムがすべて KNOWN-ATOMS に含まれている
+;; ことを仮定する。そうでない場合、この関数の挙動は信頼できない。
 (define% ((traverse-context% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
-         [pending-ports (map (^(n m) (cons (stack-ref lstack n) m)) indices (iota arity))])
+         [pending-ports ;; List[(Port, Index)]
+          (map (^(n m) (cons (if (pair? n)
+                                 (stack-ref lstack (car n))
+                                 (port-partner (stack-ref lstack n))) m)) indices (iota arity))])
     (let/cc succeed
       (let/cc fail
         (while (pair? pending-ports)

@@ -24,13 +24,13 @@
 ;;     patterns: (sexp->atomset '(("a" 0  1  2))) (sexp->atomset '(("b")))
 ;;                l0 l1 l2
 ;;     bindings: (#f #f #f), ()
-;;     clauses: clause{            l3l4 ; -> l3 がポート, l4 が arg
+;;     clauses: clause{             l3
 ;;                  guards: ("hoge" #f 0)
 ;;                            p2
-;;                  contexts: (0 3)
+;;                  contexts: (0 (3)) ; -> l0 が文脈の第０"引数", l3 は第１"ポート"
 ;;                  rhs: rule{         p3
 ;;                           patterns: (sexp->atomset '(("c" 0)))
-;;                           bindings: (4) ; -> l3 が 最初の pattern の第 0 ポート
+;;                           bindings: (3) ; -> l3 が 最初の pattern の第 0 引数
 ;;                           clauses: clause{
 ;;                                        guards: ("<" 1 2)
 ;;                                                  p4  p5
@@ -66,9 +66,9 @@
 ;;       (match-component% (sexp->atomset '(("b"))) #())
 ;;       (or% ;; clauses
 ;;        (seq% (type-check% "hoge" #(#f 0))
-;;              (traverse-context% #(0 3))
+;;              (traverse-context% #(0 (3)))
 ;;              (or% ;; RHSes
-;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
+;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
 ;;                     (or% (seq% (type-check% "<" #(1 2))
 ;;                                (traverse-context% #(1))
 ;;                                (traverse-context% #(2))
@@ -105,21 +105,21 @@
 ;;     patterns: (sexp->atomset '(("a" 0))) (sexp->atomset '(("b" 0)))
 ;;                l0    l1
 ;;     bindings: (#f), (#f)
-;;     clauses: clause{                  l2l3 l4l5
+;;     clauses: clause{                   l2   l3
 ;;                  guards: ("same_len" 0 #f 1 #f)
 ;;                            p2
-;;                  contexts: (0 2 1 4)
+;;                  contexts: (0 (2) 1 (3))
 ;;                  rhs: rule{         p3
 ;;                           patterns: (sexp->atomset '(("cons" 0 1 2))),
 ;;                                     p4
 ;;                                     (sexp->atomset '(("cons" 0 1 2)))
-;;                                      l6 l7     l8 l9
-;;                           bindings: (#f #f 3) (#f #f 5)
+;;                                      l4 l5     l6 l7
+;;                           bindings: (#f #f 2) (#f #f 3)
 ;;                           clauses: clause{
 ;;                                        guards:
 ;;                                                  p5  p6
-;;                                        contexts: (6) (8)
-;;                                        rhs: ("=" 2 7) ("=" 4 9)
+;;                                        contexts: (4) (6)
+;;                                        rhs: ("=" 2 5) ("=" 3 7)
 ;;                                             ; -> p3, p4, p5, p6 が削除される
 ;;                                    }
 ;;                       }
@@ -132,13 +132,13 @@
 ;;       (match-component% (sexp->atomset '(("b" 0)) #(#f)))
 ;;       (or% ;; clauses
 ;;        (seq% (type-check% "same_len" #(0 #f 1 #f))
-;;              (traverse-context% #(0 2 1 3))
+;;              (traverse-context% #(0 (2) 1 (3)))
 ;;              (or% ;; RHSes
 ;;               (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
 ;;                     (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
-;;                     (or% (seq% (traverse-context% #(6))
-;;                                (traverse-context% #(8))
-;;                                (instantiate-process!% '(("=" 2 7) ("=" 4 9)))
+;;                     (or% (seq% (traverse-context% #(4))
+;;                                (traverse-context% #(6))
+;;                                (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
 ;;                                (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト

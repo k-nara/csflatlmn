@@ -15,12 +15,10 @@
 
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
 ;; *NOTE* "<" 型などの引数には #f を認めない
-;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結NG, subgoal-args の制約から)
-;; *NOTE* 探索深さを制限する引数を追加すれば反復深化にすることもできる (必要があるか？)
+;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
 
 ;; *TODO* TC-LSTACK 引数まわりのの実装が後付けとはいえ汚いので整理する
-
-;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれる
+;; *TODO* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
 
 ;; ---- 型の例
 
@@ -73,17 +71,17 @@
 
 ;; ハッシュテーブル TYPE-ENV から型の名前 NAME に対応する型定義のオブジェ
 ;; クトを探して、呼び出す。 ARGS は長さが ARITY のベクタで、それぞれの
-;; 要素は整数, 整数のペア, または #f である。 TC-LSTACK が #f でない場
-;; 合、 ARGS に #f が含まれてはならず、これがそのまま型定義のオブジェク
-;; トに渡される。そうでない場合、 ARGS にペアが含まれてはならなず、
-;; 1. LSTACK, KNOWN-ATOMS, PSTACK を保護するために、 TC-LSTACK を
-;; LSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を KNOWN-ATOMS の
-;; 複製、 PSTACK をフレッシュな空のスタックとし、2. 型検査の結果得られ
-;; たポート・引数が TC-LSTACK の末尾に push されたかのように振る舞うよ
-;; う ARGS を適当に instantiate して #f を消去し、また TC-LSTACK の末尾
-;; にスペースを確保し、その上で 3. 型定義のオブジェクトを呼び出す。ただ
-;; し、 next の引数にはここで新たにアロケートされたスタックや atomset
-;; ではなく、この関数の引数として渡されたものをそのまま使う。
+;; 要素は整数, 整数一つからなるリスト, または #f である。 TC-LSTACK が
+;; #f でない場合、 ARGS に #f が含まれてはならず、これがそのまま型定義
+;; のオブジェクトに渡される。そうでない場合、 ARGS にリストが含まれては
+;; ならず、1. LSTACK, KNOWN-ATOMS, PSTACK を保護するために、 TC-LSTACK
+;; をLSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を KNOWN-ATOMS
+;; の複製、 PSTACK をフレッシュな空のスタックとし、2. 型検査の結果得ら
+;; れたポート・引数が TC-LSTACK の末尾に push されたかのように振る舞う
+;; よう ARGS を適当に instantiate して #f を消去し、また TC-LSTACK の末
+;; 尾にスペースを確保し、その上で 3. 型定義のオブジェクトを呼び出す。た
+;; だし、 next の引数にはここで新たにアロケートされたスタックや
+;; atomsetではなく、この関数の引数として渡されたものをそのまま使う。
 (define% ((type-check% name args) proc known-atoms lstack tc-lstack pstack type-env)
   (let1 type (hash-table-get type-env name #f)
     (cond [(not type)
@@ -96,7 +94,7 @@
                  [local-stack (stack-copy lstack)])
              ;; グローバルスタックを準備
              (let* ([ix lstack-initial-length]
-                    [args (map-to <vector> (^n (or n (begin0 (cons ix (+ ix 1)) (inc! ix 2)))) args)])
+                    [args (map-to <vector> (^n (or n (begin0 (list ix) (inc! ix)))) args)])
                (stack-set-length! lstack ix)
                ;; 型定義を呼び出して、失敗したらグローバルスタックを元に戻す
                (cond [((type args)
@@ -112,18 +110,16 @@
 ;; を行う、 (カリー化された) 部分手続きを構成する。得られた部分手続きは
 ;; 引数にもとづいて型検査を行い、成功した場合は next を呼び出し、その戻
 ;; り値を全体の戻り値とする。失敗した場合 #f を返す。 ARGS は長さが
-;; ARITY のベクタで、それぞれの要素は整数か整数のペアである。 ARGS の長
-;; さが間違っている場合、エラーを返す。 ARGS の第 K 要素が整数 N の場合、
-;; 第 K ポートが LSTACK の N 番目のポートになっているようなプロセス文脈
-;; が検査対象となる (N が負の場合はスタックの先頭から数える →
-;; stack-ref のドキュメントを参照) 。整数のペア P の場合、検査対象のプ
-;; ロセス文脈の第 K ポートは型検査が成功するように適当に選ばれる。選ば
-;; れたポートは TC-LSTACK の (car P) 番目に、その引数は (cdr P) 番目に、
-;; next を呼び出す前にそれぞれセットされる。 ペアが複数含まれる場合、
-;; K の小さい順にプッシュされる。 ARGS にペアが含まれているとき、型検査
-;; が成功するようなポートの候補が複数ある場合がある。まだ候補が残ってい
-;; るときに next が #fを返した場合、別の候補を TC-LSTACK にセットし、ふ
-;; たたび next を呼び出す。
+;; ARITY のベクタで、それぞれの要素は整数か整数一つからなるリストである。
+;; ARGS の長さが間違っている場合、エラーを返す。 ARGS の第 K 要素が整数
+;; N の場合、第 K ポートが LSTACK の N 番目のポートになっているようなプ
+;; ロセス文脈が検査対象となる (N が負の場合はスタックの先頭から数える
+;; → stack-ref のドキュメントを参照) 。整数のリスト (M) の場合、検査対
+;; 象のプロセス文脈の第 K ポートは型検査が成功するように適当に選ばれ、
+;; next を呼び出す前にそのポートが TC-LSTACK の M 番目にセットされる。
+;; ARGS にリストが含まれているとき、型検査が成功するようなポートの選び
+;; 方が複数ある場合がある。まだ候補が残っているときに next が #fを返し
+;; た場合、別の候補を TC-LSTACK にセットし、ふたたび next を呼び出す。
 (define% (((make-type-rule arity patterns pattern-bindings subgoals subgoal-args) args)
           proc known-atoms local-stack global-stack pstack type-env)
   ;; 引数の数を確認
@@ -139,8 +135,8 @@
                                      [(integer? y) (+ y lstack-base)]
                                      [else
                                       (let1 arg (vector-ref args (car y))
-                                        (cond [(not (integer? arg))
-                                               (push! return-ix (cons lstack-head arg))
+                                        (cond [(pair? arg)
+                                               (push! return-ix (cons lstack-head (car arg)))
                                                (inc! lstack-head)
                                                #f]
                                               [else arg]))]))
@@ -156,8 +152,7 @@
       (apply seq% (map (^(p b) (match-component% p b)) patterns patbinds))
       (lambda% (proc known-atoms local-stack global-stack pstack type-env)
         (dolist (ix return-ix)
-          (stack-set! global-stack (cadr ix) (port-partner (stack-ref local-stack (car ix))))
-          (stack-set! global-stack (cddr ix) (stack-ref local-stack (car ix))))
+          (stack-set! global-stack (cdr ix) (stack-ref local-stack (car ix))))
         (next proc known-atoms local-stack global-stack pstack type-env))
       (apply seq% (map (^(s a) (type-check% s a)) subgoals subargs)))
      :next next proc known-atoms local-stack global-stack pstack type-env)))
@@ -168,7 +163,7 @@
 ;; - テンプレートの引数が '([#f #f (1)] [(4)] [0 #f #f (3)])
 ;; - 型検査の引数が '([(0) 1 (2) 3] [4])
 ;;
-;; に ARGS = [(0 . 1) 2 (2 . 3) 1 (4 . 5)] を与える場合
+;; に ARGS = [(0) 2 (1) 1 (2)] を与える場合
 ;;
 ;; 初期状態のスタックを以下として
 ;;
@@ -183,8 +178,8 @@
 ;;                     --2--
 ;;
 ;;           l2
-;; [(4)] は [#f] と展開されて、戻り値リストに (n+2 . (4 . 5)) が
-;; push される。マッチ後のスタックは
+;; [(4)] は [#f] と展開されて、戻り値リストに (n+2 . 2) がpush される。
+;; マッチ後のスタックは
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1 +2
 ;; xx a3 a1 xx      xx l0 l1 l2
@@ -199,11 +194,10 @@
 ;;
 ;; マッチがすべて終了したら、戻り値リストにしたがって tc-lstack に
 ;; lstack のポートとそのパートナーを移す。たとえば戻り値リストの (n+2
-;; . (4 . 5)) は lstack の 2+n 番目を tc-lstack の 4 番目に、そのパート
-;; ナーを 5 番目にセットの意味。
+;; . 2) は lstack の n+2 番目を tc-lstack の 2 番目にセットの意味。
 ;;
-;; [(0) 1 (2) 3] は [(0 . 1) n+1 (2 . 3) n+3] と展開される。マッチ後の
-;; スタックは
+;; [(0) 1 (2) 3] は [(0) n+1 (1) n+3] と展開される。マッチ後のスタック
+;; は
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1 +2 +3 +4 ... k-1
 ;; xx a3 a1 xx      xx l0 l1 l2 l3 l4 ...  xx
@@ -231,14 +225,12 @@
       [(1)
        (lambda% (proc known-atoms local-stack global-stack pstack type-env)
          (let1 port (stack-ref local-stack arg2)
-           (stack-set! global-stack (car arg1) (port-partner port))
-           (stack-set! global-stack (cdr arg1) port))
+           (stack-set! global-stack (car arg1) port))
          (next proc known-atoms local-stack global-stack pstack type-env))]
       [(2)
        (lambda% (proc known-atoms local-stack global-stack pstack type-env)
          (let1 port (stack-ref local-stack arg1)
-           (stack-set! global-stack (car arg2) (port-partner port))
-           (stack-set! global-stack (cdr arg2) port))
+           (stack-set! global-stack (car arg2) port))
          (next proc known-atoms local-stack global-stack pstack type-env))]
       [(3)
        (lambda% (proc known-atoms local-stack global-stack pstack type-env)
