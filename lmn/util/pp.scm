@@ -1,7 +1,7 @@
 ;; *TODO* apply を減らしたい。next をカリー化したい (-cons% がエレガントでない)
 
 (define-module lmn.util.pp
-  (export lambda% define% seq% or%))
+  (export lambda% define% seq% or% loop%))
 
 (select-module lmn.util.pp)
 
@@ -58,6 +58,13 @@
     (cond [(null? fns) #f]
           [(apply (car fns) :next next args) => identity]
           [else (loop (cdr fns))])))
+
+;; next が #t を返す限り next を呼び出し続け、 next が初めて返した #t
+;; 以外の値を返す。
+(define% (loop% :rest args)
+  (let1 retval #f
+    (while (set! retval (apply next args)))
+    retval))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
