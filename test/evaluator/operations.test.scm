@@ -186,7 +186,7 @@
 
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (lambda% (_ _ l _ _ _) (inc! results) #f))]
+                       (^(_ _ l _ _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
   (test* "return value" #f (searcher proc (make-atomset) (make-stack) #f (make-stack) #f))
   (test* "found results" 4 results)
@@ -199,7 +199,7 @@
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                        (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (lambda% (_ _ l _ _ _) (inc! results) #f))]
+                       (^(_ _ l _ _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
   (test* "return value" #f (searcher proc (make-atomset) (make-stack) #f (make-stack) #f))
   (test* "found pairs" 12 results)
@@ -226,7 +226,7 @@
 
 (let ([searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                       (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                      (lambda% (_ _ l _ _ _)
+                      (^(_ _ l _ _ _)
                         (let ([name1 (atom-name (port-atom (port-partner (stack-ref l 0))))]
                               [name2 (atom-name (port-atom (port-partner (stack-ref l 1))))])
                           (and (= (* (string->number name1) (string->number name2)) 16)
@@ -448,7 +448,3 @@
 ;; ----------------------
 
 (test-end :exit-on-failure #t)
-
-;; Local Variables:
-;; eval: (put 'lambda% 'scheme-indent-function 1)
-;; End:
