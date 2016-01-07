@@ -1,3 +1,9 @@
+;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
+;; *NOTE* "<" 型などの引数には #f を認めない
+;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
+;; *TODO* TC-LSTACK 引数まわりの実装が後付けなので整理されていない
+;; *TODO* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
+
 (define-module lmn.evaluator.type
   (use gauche.collection) ;; map-to
   (use lmn.util.stack)
@@ -12,13 +18,6 @@
 ;; ※このファイルを読む前に evaluator/operations.scm を読むべき
 
 ;; プロセス文脈型検査を行う手続きを提供する。
-
-;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
-;; *NOTE* "<" 型などの引数には #f を認めない
-;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
-
-;; *TODO* TC-LSTACK 引数まわりのの実装が後付けとはいえ汚いので整理する
-;; *TODO* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
 
 ;; ---- 型の例
 

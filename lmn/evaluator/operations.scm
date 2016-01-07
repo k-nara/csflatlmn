@@ -1,3 +1,11 @@
+;; *NOTE* プロセス文脈の直結にマッチするルールは書けない (traverse-context% の known-atoms の制約)
+;; *NOTE* プロセス文脈は必ず１価以上の ground (traverse-context% で文脈の範囲を確定するため)
+;; *NOTE* 一方、トラバースと検査を別に行うので、同じ文脈に複数の型を付けてよい
+;; *TODO* プロセスやアトムの再利用を実装すべき
+;; *TODO* -rassoc-port-ix の実装が後付けなので整理されていない
+;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙？
+;; *TODO* traverse-context% が port と arg を両方扱うのに闇を感じる (本当にバグがないかよく検証する)
+
 (define-module lmn.evaluator.operations
   (use lmn.util.list)
   (use lmn.util.pp)
@@ -18,15 +26,6 @@
 ;; でより大きな操作に組み立てることができる。引数の形式をそろえるために、
 ;; いくつかの引数は、受け取りはするものの手続き内で使用されない場合があ
 ;; る。
-
-;; *NOTE* プロセス文脈の直結にマッチするルールは書けない (traverse-context% の known-atoms の制約)
-;; *NOTE* プロセス文脈は必ず１価以上の ground (traverse-context% で文脈の範囲を確定するため)
-;; *NOTE* 一方、トラバースと検査を別に行うので、同じ文脈に複数の型を付けてよい
-
-;; *TODO* プロセスやアトムの再利用を実装すべき
-;; *TODO* -rassoc-port-ix はデータ構造の工夫で O(1) にしたい？
-;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙？
-;; *TODO* traverse-context% が port と arg を両方扱うのに闇を感じる (本当にバグがないかよく検証する)
 
 ;; ---- remove-processes%
 

@@ -1,3 +1,5 @@
+;; *TODO* loop% のテストを書く
+
 (use gauche.test)
 
 (use test.util)

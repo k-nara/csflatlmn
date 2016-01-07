@@ -1,3 +1,5 @@
+;; *TODO* apply を減らしたい。next をカリー化したい (-cons% がエレガントでない)
+
 (define-module lmn.util.pp
   (export lambda% define% seq% or%))
 
@@ -5,11 +7,6 @@
 
 ;; 戻り先を指定して呼び出せる関数 (部分手続きと呼ぶ) を用いて、動的にバッ
 ;; クトラックの手続きを生成するためのユーティリティ群を提供する。
-
-;; *NOTE* pp に :next を渡すと後続が指定された新しい pp が返ってくるよ
-;; うな実装のほうがいいかも？少なくとも seq% の実装は多少綺麗になるよ
-
-;; *TODO* -cons% の実装があまりエレガントでない
 
 ;; (内部関数) 引数の個数を一般化した identity
 (define (-identity% :rest x)
