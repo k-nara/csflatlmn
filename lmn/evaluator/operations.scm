@@ -31,8 +31,8 @@
 
 ;; [O(n)] PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC
 ;; から取り除き、 next を呼び出す。 next の戻り値がそのまま全体の戻り値
-;; になる (next が boolean を返しても、破壊した PROC が元に戻ることはな
-;; いことに注意する)。
+;; になる(next が #fを返しても、破壊した PROC が元に戻ることはないこと
+;; に注意する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (dolist (ix indices)
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
@@ -40,11 +40,6 @@
 
 ;; ---- instantiate-process!%
 
-;; [O(n)] Ｓ式 TREES をもとにプロセスを生成し、含まれるアトムをすべて
-;; PROC に追加する。 `atomset->sexp' と異なり、整数 N から始まるリスト
-;; は direct link ではなく PSTACK の N 番目のプロセスを複製することを表
-;; す (next が boolean を返しても、破壊した PROC が元に戻ることはないこ
-;; とに注意する)。
 (define% ((instantiate-process!% trees) proc known-atoms lstack tc-lstack pstack type-env)
   (let1 pending-ports (make-hash-table 'eq?)
     (dolist (tree trees)
@@ -105,8 +100,8 @@
 ;;              - 次のアトムが proc 外にある -> 失敗
 ;;    ※どこかで失敗した場合には 5. へ進む
 ;; 4. プロセスとリンクをスタックにプッシュして next を呼ぶ
-;;    - next が non-boolean を返す -> それを全体の戻り値とする
-;;    - next が boolean を返す -> スタックを元に戻して 5. へ進む
+;;    - next が non-#f を返す -> それを全体の戻り値とする
+;;    - next が #f を返す -> スタックを元に戻して 5. へ進む
 ;; 5. proc を元に戻して 2. へバックトラック
 
 ;; (内部関数) PORT がアトム集合 SET の何番目のポートにセットされている
@@ -123,12 +118,12 @@
 ;; 制約の帰結として、 PAT は direct link を含まない) 。見つかった場合、
 ;; 見つかった部分プロセスを atomset として PSTACK にプッシュし、またこ
 ;; れに含まれるアトムをすべて KNOWN-ATOMS にプッシュしたうえで next を
-;; 呼び出す。next の戻り値が boolean の場合、PROC, KNOWN-ATOMS,
-;; LSTACK, PSTACK を元の状態に戻して別のマッチを探す。マッチする部分プ
-;; ロセスがそれ以上存在しない場合、PROC, KNOWN-ATOMS, LSTACK, PSTACK に
-;; は手を付けず、たんに #f を返す。 INDICES は PAT の価数と同じ長さのベ
-;; クタで、そのそれぞれの要素は #f または自然数でなければならない。ベク
-;; タの K番目の要素が自然数 N の場合、取り出す部分プロセスの第 K 引数は
+;; 呼び出す。next の戻り値が #f の場合、PROC, KNOWN-ATOMS, LSTACK,
+;; PSTACK を元の状態に戻して別のマッチを探す。マッチする部分プロセスが
+;; それ以上存在しない場合、PROC, KNOWN-ATOMS, LSTACK, PSTACK には手を付
+;; けず、たんに #f を返す。 INDICES は PAT の価数と同じ長さのベクタで、
+;; そのそれぞれの要素は #f または自然数でなければならない。ベクタの K
+;; 番目の要素が自然数 N の場合、取り出す部分プロセスの第 K 引数は
 ;; LSTACK の N 番目に格納されたポートにマッチしなければならない。K 番目
 ;; の要素が #f の場合は任意のポートがマッチし、next を呼び出す前にマッ
 ;; チした部分プロセスの第 K ポート が LSTACK にプッシュされる。 #f がベ
@@ -208,11 +203,11 @@
                 (dotimes (i arity)
                   (unless (vector-ref indices i)
                     (stack-push! lstack (atomset-port newproc i))))
-                (cond [(next proc known-atoms lstack tc-lstack pstack type-env)
-                       (compose not boolean?) => succeed]
-                      [else
-                       (stack-set-length! lstack orig-length)
-                       (stack-pop! pstack)])))
+                (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
+                  (succeed res))
+                ;; next が失敗 -> スタックの状態を元に戻す
+                (stack-set-length! lstack orig-length)
+                (stack-pop! pstack)))
             ;; (fail を呼ぶとここに来る) known-atoms を元に戻して次のイテレーションへ
             (atomset-map-atoms (cut atomset-remove-atom! known-atoms <>) newproc))))
       ;; 全てのイテレーションが失敗
@@ -281,18 +276,17 @@
 
 ;; PROC からプロセス文脈を１つ切り出す。成功した場合、切り出した部分プ
 ;; ロセスを atomset として PSTACK にプッシュし、またこれに含まれるアト
-;; ムをすべて KNOWN-ATOMS にプッシュしたうえで next を呼び出す。 next
-;; の戻り値が boolean の場合、 KNOWN-ATOMS, PROC, PSTACK を元に戻してか
-;; らその値をそのまま返す。走査に失敗した場合も、 KNOWN-ATOMS, PROC,
-;; PSTACK には手を付けず、 #f を返す。INDICES は取り出す部分プロセスの
-;; 価数 (≧１) と同じ長さのリストで、その要素は自然数か自然数一つからな
-;; るリストでなければならない。INDICES の第 K 要素が自然数 N のとき、切
-;; り出す部分プロセスの第 K 引数はLSTACK の N 番目に格納されたポートに
-;; なる。 自然数のリスト (M) の場合、第 K "ポート"が M 番目に格納された
-;; ポートになる。効率のため、この関数は切り出す対象の部分プロセスが存在
-;; するとき、その部分プロセスの各引数の指すアトムがすべて KNOWN-ATOMS
-;; に含まれていることを仮定する。そうでない場合、この関数の挙動は信頼で
-;; きない。
+;; ムをすべて KNOWN-ATOMS にプッシュしたうえで next を呼び出す。 nextの
+;; 戻り値が #f の場合、 KNOWN-ATOMS, PROC, PSTACK を元に戻してから#f を
+;; 返す。走査に失敗した場合も同様に、 KNOWN-ATOMS, PROC, PSTACK には手
+;; を付けず、 #f を返す。INDICES は取り出す部分プロセスの価数 (≧１) と
+;; 同じ長さのリストで、その要素は自然数か自然数一つからなるリストでなけ
+;; ればならない。INDICES の第 K 要素が自然数 N のとき、切り出す部分プロ
+;; セスの第 K 引数はLSTACK の N 番目に格納されたポートになる。 自然数の
+;; リスト (M) の場合、第 K "ポート"が M 番目に格納されたポートになる。
+;; 効率のため、この関数は切り出す対象の部分プロセスが存在するとき、その
+;; 部分プロセスの各引数の指すアトムがすべて KNOWN-ATOMS に含まれている
+;; ことを仮定する。そうでない場合、この関数の挙動は信頼できない。
 (define% ((traverse-context% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
@@ -344,10 +338,10 @@
         ;; (トラバース終了)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
-        (cond [(next proc known-atoms lstack tc-lstack pstack type-env)
-               (compose not boolean?) => succeed]
-              [else
-               (stack-pop! pstack)]))
+        (if-let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
+          (succeed res))
+        ;; next が失敗 -> pstack を元に戻す
+        (stack-pop! pstack))
       ;; (fail を呼ぶとここに来る) known-atoms を元に戻して #f を返す
       (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
       #f)))
