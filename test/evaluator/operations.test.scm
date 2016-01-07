@@ -186,7 +186,7 @@
 
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (^(_ _ l _ _ _) (inc! results) #f))]
+                       (lambda% (_ _ l _ _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
   (test* "return value" #f (searcher proc (make-atomset) (make-stack) #f (make-stack) #f))
   (test* "found results" 4 results)
@@ -199,7 +199,7 @@
 (let* ([results 0]
        [searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                        (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                       (^(_ _ l _ _ _) (inc! results) #f))]
+                       (lambda% (_ _ l _ _ _) (inc! results) #f))]
        [proc (sexp->atomset '(("n" ("1")) ("n" ("2")) ("n" ("3")) ("n" ("4"))))])
   (test* "return value" #f (searcher proc (make-atomset) (make-stack) #f (make-stack) #f))
   (test* "found pairs" 12 results)
@@ -226,7 +226,7 @@
 
 (let ([searcher (seq% (match-component% (sexp->atomset '(("n" 0))) #(#f))
                       (match-component% (sexp->atomset '(("n" 0))) #(#f))
-                      (^(_ _ l _ _ _)
+                      (lambda% (_ _ l _ _ _)
                         (let ([name1 (atom-name (port-atom (port-partner (stack-ref l 0))))]
                               [name2 (atom-name (port-atom (port-partner (stack-ref l 1))))])
                           (and (= (* (string->number name1) (string->number name2)) 16)
@@ -437,8 +437,7 @@
   (atomset-add-atom! known-atoms (atomset-find-atom proc (functor "c" 1)))
   (stack-push! lstack (atom-port (atomset-find-atom proc (functor "c" 1)) 0))
   (test* "traverse success"
-         'success
-         (traverser :next (^ _ (set! args _) 'success) proc known-atoms lstack #f pstack #f))
+         #t (traverser :next (^ _ (set! args _) #t) proc known-atoms lstack #f pstack #f))
   (test* "`next' args" (list proc known-atoms lstack #f pstack #f) args)
   (test* "lstack" 2 (stack-length lstack))
   (test* "pstack (1)" 1 (stack-length pstack))
@@ -449,3 +448,7 @@
 ;; ----------------------
 
 (test-end :exit-on-failure #t)
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; End:
