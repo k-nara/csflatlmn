@@ -74,13 +74,13 @@
 ;; #f でない場合、 ARGS に #f が含まれてはならず、これがそのまま型定義
 ;; のオブジェクトに渡される。そうでない場合、 ARGS にリストが含まれては
 ;; ならず、1. LSTACK, KNOWN-ATOMS, PSTACK を保護するために、 TC-LSTACK
-;; をLSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を KNOWN-ATOMS
+;; を LSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を KNOWN-ATOMS
 ;; の複製、 PSTACK をフレッシュな空のスタックとし、2. 型検査の結果得ら
 ;; れたポート・引数が TC-LSTACK の末尾に push されたかのように振る舞う
 ;; よう ARGS を適当に instantiate して #f を消去し、また TC-LSTACK の末
 ;; 尾にスペースを確保し、その上で 3. 型定義のオブジェクトを呼び出す。た
 ;; だし、 next の引数にはここで新たにアロケートされたスタックや
-;; atomsetではなく、この関数の引数として渡されたものをそのまま使う。
+;; atomset ではなく、この関数の引数として渡されたものをそのまま使う。
 (define% ((type-check% name args) proc known-atoms lstack tc-lstack pstack type-env)
   (let1 type (hash-table-get type-env name #f)
     (cond [(not type)
@@ -95,13 +95,12 @@
              (let* ([ix lstack-initial-length]
                     [args (map-to <vector> (^n (or n (begin0 (list ix) (inc! ix)))) args)])
                (stack-set-length! lstack ix)
-               ;; 型定義を呼び出して、失敗したらグローバルスタックを元に戻す
-               (cond [((type args)
-                       :next (^(proc _ local-stack global-stack _ type-env)
-                               (next proc known-atoms global-stack #f pstack type-env))
-                       proc (atomset-copy known-atoms) local-stack lstack (make-stack) type-env)
-                      => identity]
-                     [else (stack-set-length! lstack lstack-initial-length) #f])))])))
+               (begin0
+                 ((type args)
+                  :next (^(proc _ local-stack global-stack _ type-env)
+                          (next proc known-atoms global-stack #f pstack type-env))
+                  proc (atomset-copy known-atoms) local-stack lstack (make-stack) type-env)
+                 (stack-set-length! lstack lstack-initial-length))))])))
 
 ;; ---- make-type
 

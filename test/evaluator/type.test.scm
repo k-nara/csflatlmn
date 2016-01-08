@@ -18,57 +18,68 @@
 
 (let ([proc (sexp->atomset '(("a" ("b" L) ("c" L ("d"))) ("e" ("f"))))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
+      [pstack2 #f]
       [next-args #f])
-  ((match-component% (sexp->atomset '(("a" ("b" 0) ("c" 1 2)))) #(#f #f #f))
-   proc known-atoms lstack #f pstack test-env0)
-  (test* "match result"
-         #t
-         ((type-check% "link" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env0))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env0) next-args)
-  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("a" "b" "c") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 3 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("a" ("b" 0) ("c" 1 2)))) #(#f #f #f))
+                (type-check% "link" #(0 1)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env0))
+  (test* "known-atoms (1)" '("a" "b" "c") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 3 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "type-subr-link success (an arg is unspecified)")
 
 (let ([proc (sexp->atomset '(("a" ("b" L) ("c" L ("d"))) ("e" ("f"))))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("e" 0))) #(#f)) proc known-atoms lstack #f pstack test-env0)
-  (test* "match result"
-         #t
-         ((type-check% "link" #(0 #f))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env0))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env0) next-args)
-  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("e") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack (1)" 2 (stack-length lstack))
-  (test* "lstack (2)" "e" (atom-name (port-atom (stack-ref lstack 1))))
-  (test* "pstack" 1 (stack-length pstack)))
+      [pstack2 #f])
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("e" 0))) #(#f)) (type-check% "link" #(0 #f)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env0))
+  (test* "known-atoms (1)" '("e") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" "e" (atom-name (port-atom (stack-ref lstack2 1))))
+  (test* "lstack (3)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "type-subr-link rejected")
 
 (let ([proc (sexp->atomset '(("a" ("b" L) ("c" L ("d"))) ("e" ("f"))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
-      [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("e" 0))) #(#f)) proc known-atoms lstack #f pstack test-env0)
-  (test* "match result"
-         #f
-         ((type-check% "link" #(0 #f))
-          :next (^ x (set! next-args x) #f) proc known-atoms lstack #f pstack test-env0))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env0) next-args)
-  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("e") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 1 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+      [pstack (make-stack)])
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("e" 0))) #(#f)) (type-check% "link" #(0 #f)))
+          :next (^ _ #f) proc (make-atomset) (make-stack) #f (make-stack) test-env0))
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
+  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "type-subr-link failure")
 
@@ -76,18 +87,18 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("a" 0 1))) #(#f #f))
-   proc known-atoms lstack #f pstack test-env0)
+      [next-called #f])
   (test* "match result"
          #f
-         ((type-check% "link" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env0))
-  (test* "next-args" #f next-args)
-  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("a") (atomset-map-atoms atom-name known-atoms))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+         ((seq% (match-component% (sexp->atomset '(("a" 0 1))) #(#f #f))
+                (type-check% "link" #(0 1)))
+          :next (^ x (set! next-called #t) #t)
+          proc known-atoms lstack #f pstack test-env0))
+  (test* "next-called" #f next-called)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
+  (test* "proc" '("a" "b" "c" "d" "e" "f") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 ;; ----------------------
 
@@ -110,50 +121,66 @@
 (test-section "user-defined type (1) simple pattern + selection, ports specified")
 
 (let ([proc (sexp->atomset '(("a" ("c" ("x")) ("y"))))]
+      [matcher (seq% (match-component% (sexp->atomset '(("x" 0))) #(#f))
+                     (match-component% (sexp->atomset '(("y" 0))) #(#f)))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0))) #(#f)) proc known-atoms lstack #f pstack test-env1)
-  ((match-component% (sexp->atomset '(("y" 0))) #(#f)) proc known-atoms lstack #f pstack test-env1)
-  (test* "match result (failure)"
-         #f
-         ((type-check% "t1" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env1))
-  (test* "next-args" #f next-args)
-  (test* "match result (success)"
-         #t
-         ((type-check% "t2" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env1))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env1) next-args)
-  (test* "proc" '("a" "c" "x" "y") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x" "y") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 2 (stack-length pstack)))
+      [pstack2 #f]
+      [next-called #f])
+  (test* "match result (failure)" #f
+         ((seq% matcher (type-check% "t1" #(0 1))) :next (^ _ (set! next-called #t) #t)
+          proc known-atoms lstack #f pstack test-env1))
+  (test* "next-called" #f next-called)
+  (test* "match result (success)" 'success
+         ((seq% matcher (type-check% "t2" #(0 1)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env1))
+  (test* "known-atoms (1)" '("x" "y") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 2 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("a" "c" "x" "y") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "user-defined type (1) simple pattern + selection, ports unspecified")
 
 (let ([proc (sexp->atomset '(("a" ("c" ("x")) ("y"))))]
+      [matcher (match-component% (sexp->atomset '(("x" 0))) #(#f))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0))) #(#f)) proc known-atoms lstack #f pstack test-env1)
-  (test* "match result (failure)"
-         #f
-         ((type-check% "t1" #(0 #f))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env1))
-  (test* "next-args" #f next-args)
-  (test* "match result (success)"
-         #t
-         ((type-check% "t2" #(0 #f))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env1))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env1) next-args)
-  (test* "proc" '("a" "c" "x" "y") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack (1)" 2 (stack-length lstack))
-  (test* "lstack (2)" "a" (atom-name (port-atom (stack-ref lstack 1))))
-  (test* "pstack" 1 (stack-length pstack)))
+      [pstack2 #f]
+      [next-called #f])
+  (test* "match result (failure)" #f
+         ((seq% matcher (type-check% "t1" #(0 #f)))
+          :next (^ _ (set! next-called #t) #t) proc known-atoms lstack #f pstack test-env1))
+  (test* "next-called" #f next-called)
+  (test* "match result (success)" 'success
+         ((seq% matcher (type-check% "t2" #(0 #f)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env1))
+  (test* "known-atoms (1)" '("x") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" "a" (atom-name (port-atom (stack-ref lstack2 1))))
+  (test* "lstack (3)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("a" "c" "x" "y") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 ;; ----------------------
 
@@ -181,37 +208,40 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0 1))) #(#f #f))
-   proc known-atoms lstack #f pstack test-env2)
-  (test* "match result"
-         #f
-         ((type-check% "t1" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env2))
-  (test* "next-args" #f next-args)
-  (test* "proc" '("x" "a" "b") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+      [next-called #f])
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("x" 0 1))) #(#f #f)) (type-check% "t1" #(0 1)))
+          :next (^ _ (set! next-called #t) #t) proc known-atoms lstack #f pstack test-env2))
+  (test* "next-called" #f next-called)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
+  (test* "proc" '("x" "a" "b") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "user-defined type (2) disjoint pattern + subgoal, ports specified / success")
 
 (let ([proc (sexp->atomset '(("x" ("a" ("c" L1)) ("b" L1))))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0 1))) #(#f #f))
-   proc known-atoms lstack #f pstack test-env2)
-  (test* "match result"
-         #t
-         ((type-check% "t1" #(0 1))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env2))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env2) next-args)
-  (test* "proc" '("x" "a" "c" "b") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+      [pstack2 #f])
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("x" 0 1))) #(#f #f)) (type-check% "t1" #(0 1)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env2))
+  (test* "known-atoms (1)" '("x") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("x" "a" "c" "b") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "user-defined type (2) disjoint pattern + subgoal, ports unspecified / failure")
 
@@ -219,35 +249,40 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0))) #(#f)) proc known-atoms lstack #f pstack test-env2)
-  (test* "match result"
-         #f
-         ((type-check% "t1" #(0 #f))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env2))
-  (test* "next-args" #f next-args)
-  (test* "proc" '("x" "y" "a" "b") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 1 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+      [next-called #f])
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("x" 0))) #(#f)) (type-check% "t1" #(0 #f)))
+          :next (^ _ (set! next-called #t) #t) proc known-atoms lstack #f pstack test-env2))
+  (test* "next-called" #f next-called)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
+  (test* "proc" '("x" "y" "a" "b") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "user-defined type (2) disjoint pattern + subgoal, ports unspecified / success")
 
 (let ([proc (sexp->atomset '(("x" ("a" ("c" L1))) ("y" ("b" L1))))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("x" 0))) #(#f)) proc known-atoms lstack #f pstack test-env2)
-  (test* "match result"
-         #t
-         ((type-check% "t1" #(0 #f))
-          :next (^ x (set! next-args x) #t) proc known-atoms lstack #f pstack test-env2))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env2) next-args)
-  (test* "proc" '("x" "a" "c" "y" "b") (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("x") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+      [pstack2 #f])
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("x" 0))) #(#f)) (type-check% "t1" #(0 #f)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env2))
+  (test* "known-atoms (1)" '("x") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("x" "a" "c" "y" "b") (atomset-map-atoms atom-name proc) (set-equal?)))
 
 ;; ----------------------
 
@@ -278,21 +313,29 @@
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))
                              ("b" ("." ("4") ("." ("5") ("." ("6") ("[]")))))))]
       [known-atoms (make-atomset)]
+      [known-atoms2 #f]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("a" 0))) #(#f)) proc known-atoms lstack #f pstack test-env3)
-  ((match-component% (sexp->atomset '(("b" 0))) #(#f)) proc known-atoms lstack #f pstack test-env3)
-  (test* "match result"
-         #t
-         ((type-check% "t" #(0 1))
-          :next (^ args (set! next-args args) #t) proc known-atoms lstack #f pstack test-env3))
-  (test* "next-args" (list proc known-atoms lstack #f pstack test-env3) next-args)
+      [pstack2 #f])
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
+                (match-component% (sexp->atomset '(("b" 0))) #(#f))
+                (type-check% "t" #(0 1)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env3))
+  (test* "known-atoms (1)" '("a" "b") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 2 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 2 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
   (test* "proc" '("a" "." "1" "." "2" "." "3" "[]" "b" "." "4" "." "5" "." "6" "[]")
-         (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 2 (stack-length pstack)))
+         (atomset-map-atoms atom-name proc) (set-equal?)))
 
 (test-section "user-defined type (3) simple self recursion / failure")
 
@@ -301,19 +344,18 @@
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
       [pstack (make-stack)]
-      [next-args #f])
-  ((match-component% (sexp->atomset '(("a" 0))) #(#f)) proc known-atoms lstack #f pstack test-env3)
-  ((match-component% (sexp->atomset '(("b" 0))) #(#f)) proc known-atoms lstack #f pstack test-env3)
-  (test* "match result"
-         #f
-         ((type-check% "t" #(0 1))
-          :next (^ args (set! next-args args) #t) proc known-atoms lstack #f pstack test-env3))
-  (test* "next-args" #f next-args)
+      [next-called #f])
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
+                (match-component% (sexp->atomset '(("b" 0))) #(#f))
+                (type-check% "t" #(0 1)))
+          :next (^ _ (set! next-called #t) #t) proc known-atoms lstack #f pstack test-env3))
+  (test* "next-called" #f next-called)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
   (test* "proc" '("a" "." "1" "." "2" "[]" "b" "." "4" "." "5" "." "6" "[]")
-         (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("a" "b") (atomset-map-atoms atom-name known-atoms) (set-equal?))
-  (test* "lstack" 2 (stack-length lstack))
-  (test* "pstack" 2 (stack-length pstack)))
+         (atomset-map-atoms atom-name proc) (set-equal?)))
 
 ;; ----------------------
 
@@ -333,39 +375,39 @@
     (hash-table-put! env "t" type-dlist)
     (hash-table-put! env "link" type-subr-link)))
 
-(test-section "user-defined type (4) simple linear search")
+(test-section "user-defined type (4) simple linear backtracking")
 
 (let ([proc (sexp->atomset '(("a" ("." ("1") ("." ("2") ("." ("3") ("[]")))))))]
       [known-atoms (make-atomset)]
       [lstack (make-stack)]
+      [lstack2 #f]
       [pstack (make-stack)]
+      [pstack2 #f]
       [found-conses ()])
   ;; "a($x['.'(Car, Cdr)]) | dlist($x)" なプロセスを、$x の短いものから
   ;; 順に探索
-  ((match-component% (sexp->atomset '(("a" 0))) #(#f)) proc known-atoms lstack #f pstack test-env3)
-  (test* "match result"
-         #f
-         ((seq% (type-check% "t" #(0 #f))
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
+                (type-check% "t" #(0 #f))
                 (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1))
-                (^ _
-                  (push! found-conses (atom-name (port-atom (port-partner (stack-ref lstack 2)))))
+                (^ (_ _ l _ _ _)
+                  (push! found-conses (atom-name (port-atom (port-partner (stack-ref l 2)))))
                   #f))
           proc known-atoms lstack #f pstack test-env3))
   (test* "found conses" '("3" "2" "1") found-conses)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
   (test* "proc" '("a" "." "1" "." "2" "." "3" "[]")
-         (atomset-map-atoms atom-name proc) (set-equal?))
-  (test* "known-atoms" '("a") (atomset-map-atoms atom-name known-atoms))
-  (test* "lstack" 1 (stack-length lstack))
-  (test* "pstack" 1 (stack-length pstack)))
+         (atomset-map-atoms atom-name proc) (set-equal?)))
 
-(test-section "user-defined type (4) nested linear search")
+(test-section "user-defined type (4) nested linear backtracking")
 
 (let1 proc
     (sexp->atomset
      '(("a" ("." ("4") ("." ("7") ("." ("2") ("." ("3") ("." ("8") ("." ("2") ("[]"))))))))))
   ;; 数のリストから、積が１６になるようなペアを探す
-  (test* "search result"
-         '(2 . 8)
+  (test* "search result" '(2 . 8)
          ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f)) ;; l0
                 (type-check% "t" #(0 #f)) ;; l1
                 (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1)) ;; l2, l3
@@ -385,18 +427,16 @@
        (sexp->atomset
         '(("." ("4") ("." ("7") ("." ("2") ("." ("3") ("." ("8") ("." ("2") L0))))) L0)))]
       [found-results ()])
-  (test* "return value"
-         #f
+  (test* "return value" #f
          ((seq% (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f #f)) ;; l0, l1, l2
                 (type-check% "t" #(1 #f)) ;; l3
                 (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 3)) ;; l4, l5
-                (^(_ _ lstack _ _ _)
+                (^(_ _ l _ _ _)
                   (let ([n1 (string->number
-                             (atom-name (port-atom (port-partner (stack-ref lstack 0)))))]
+                             (atom-name (port-atom (port-partner (stack-ref l 0)))))]
                         [n2 (string->number
-                             (atom-name (port-atom (port-partner (stack-ref lstack 4)))))])
-                    (when (= (* n1 n2) 16)
-                      (push! found-results (cons n1 n2)))
+                             (atom-name (port-atom (port-partner (stack-ref l 4)))))])
+                    (when (= (* n1 n2) 16) (push! found-results (cons n1 n2)))
                     #f)))
           proc (make-atomset) (make-stack) #f (make-stack) test-env3))
   (test* "search result" '((2 . 8) (8 . 2)) found-results (set-equal?)))
