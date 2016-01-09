@@ -1,3 +1,5 @@
+;; *NOTE* match-component% は or% のようにループしない
+;;        (→ あるルールが return しても、また同じルールを適用できる可能性はある)
 ;; *NOTE* プロセス文脈の直結にマッチするルールは書けない (traverse-context% の known-atoms の制約)
 ;; *NOTE* プロセス文脈は必ず１価以上の ground (traverse-context% で文脈の範囲を確定するため)
 ;; *NOTE* 一方、トラバースと検査を別に行うので、同じ文脈に複数の型を付けてよい

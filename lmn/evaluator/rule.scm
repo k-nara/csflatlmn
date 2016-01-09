@@ -64,22 +64,24 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f))
 ;;       (match-component% (sexp->atomset '(("b"))) #())
-;;       (or% ;; clauses
-;;        (seq% (type-check% "hoge" #(#f 0))
-;;              (traverse-context% #(0 (3)))
-;;              (or% ;; RHSes
-;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
-;;                     (or% (seq% (type-check% "<" #(1 2))
-;;                                (traverse-context% #(1))
-;;                                (traverse-context% #(2))
-;;                                (instantiate-process!% '(("d" 5) (5 1) (5 2)))
-;;                                (remove-processes!% '(3 4 5)))))
-;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
-;;                     (or% (seq% (type-check% ">" #(1 2))
-;;                                (traverse-context% #(1))
-;;                                (traverse-context% #(2))
-;;                                (instantiate-process!% '(("e" 3) (4 1) (4 2)))
-;;                                (remove-processes!% '(3 4 5)))))))))
+;;       (or% #f ;; clauses
+;;            (seq% (type-check% "hoge" #(#f 0))
+;;                  (traverse-context% #(0 (3)))
+;;                  (or% #f ;; RHSes
+;;                       (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
+;;                             (or% #f
+;;                                  (seq% (type-check% "<" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
+;;                                        (instantiate-process!% '(("d" 5) (5 1) (5 2)))
+;;                                        (remove-processes!% '(3 4 5)))))
+;;                       (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
+;;                             (or% #f
+;;                                  (seq% (type-check% ">" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
+;;                                        (instantiate-process!% '(("e" 3) (4 1) (4 2)))
+;;                                        (remove-processes!% '(3 4 5)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 
@@ -130,16 +132,16 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0)) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0)) #(#f)))
-;;       (or% ;; clauses
-;;        (seq% (type-check% "same_len" #(0 #f 1 #f))
-;;              (traverse-context% #(0 (2) 1 (3)))
-;;              (or% ;; RHSes
-;;               (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
-;;                     (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
-;;                     (or% (seq% (traverse-context% #(4))
-;;                                (traverse-context% #(6))
-;;                                (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
-;;                                (remove-processes% '(3 4 5 6)))))))))
+;;       (or% #f ;; clauses
+;;            (seq% (type-check% "same_len" #(0 #f 1 #f))
+;;                  (traverse-context% #(0 (2) 1 (3)))
+;;                  (or% ;; RHSes
+;;                   (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
+;;                         (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
+;;                         (or% (seq% (traverse-context% #(4))
+;;                                    (traverse-context% #(6))
+;;                                    (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
+;;                                    (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 

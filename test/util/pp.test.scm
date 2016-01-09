@@ -42,8 +42,8 @@
 (test* "seq% (2)" #f ((seq% succ% succ% even?%) 9))
 (test* "seq%:next" 12 ((seq% succ% succ%) :next succ% 9))
 
-(test* "or%" 9 ((or% even?% (great?% 100) (great?% 9) (great?% 5)) 11))
-(test* "or%:next" 11 ((or% even?% (great?% 10)) :next succ% 12))
+(test* "or%" 9 ((or% #f even?% (great?% 100) (great?% 9) (great?% 5)) 11))
+(test* "or%:next" 11 ((or% #f even?% (great?% 10)) :next succ% 12))
 
 ;; ----------------------
 

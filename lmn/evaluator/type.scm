@@ -208,7 +208,7 @@
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
 ;; のどれかが成功すれば成功するような型検査の手続きを生成する。
 (define ((make-type :rest type-rules) args)
-  (apply or% (map (^r (r args)) type-rules)))
+  (apply or% #t (map (^r (r args)) type-rules)))
 
 ;; ---- type-subr-link
 
