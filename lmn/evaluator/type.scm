@@ -11,7 +11,7 @@
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.evaluator.operations)
-  (export type-check% make-type make-type-rule type-subr-link))
+  (export type-check% make-type make-type-rule type-subr-int type-subr-link))
 
 (select-module lmn.evaluator.type)
 
@@ -210,13 +210,26 @@
 (define ((make-type :rest type-rules) args)
   (apply or% #t (map (^r (r args)) type-rules)))
 
-;; ---- type-subr-link
+;; ---- built-in data types
+
+(define (type-subr-int args)
+  (unless (= 1 (vector-length args))
+    (error "(type-check) wrong number of arguments for built-in type `int'"))
+  (let1 arg (vector-ref args 0)
+    (unless (integer? arg)
+      (error "(type-check) argument for built-in type `int' is unspecified"))
+    (lambda% (proc known-atoms local-stack global-stack pstack type-env)
+      (and (integer?
+            (string->number (atom-name (port-atom (port-partner (stack-ref local-stack arg))))))
+           (next proc known-atoms local-stack global-stack pstack type-env)))))
+
+;; ---- built-in type "link"
 
 ;; 組み込み型 "link" の実装。 ARGS は２要素のベクタで、その要素は自然数
 ;; または #f である。 ARGS の長さが異なる場合はエラーを返す。
 (define (type-subr-link args)
   (unless (= 2 (vector-length args))
-    (error "(type-check) wrong number of arguments"))
+    (error "(type-check) wrong number of arguments for built-in type `link'"))
   (let* ([arg1 (vector-ref args 0)]
          [arg2 (vector-ref args 1)])
     (case (+ (* (if (integer? arg1) 1 0) 2) (if (integer? arg2) 1 0))
