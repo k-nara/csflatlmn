@@ -64,12 +64,12 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f))
 ;;       (match-component% (sexp->atomset '(("b"))) #())
-;;       (or% #f ;; clauses
+;;       (or% #t ;; clauses
 ;;            (seq% (type-check% "hoge" #(#f 0))
 ;;                  (traverse-context% #(0 (3)))
-;;                  (or% #f ;; RHSes
+;;                  (or% #t ;; RHSes
 ;;                       (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
-;;                             (or% #f
+;;                             (or% #f ;; RHSes (最も内側の RHS では or% はループしてはいけない)
 ;;                                  (seq% (type-check% "<" #(1 2))
 ;;                                        (traverse-context% #(1))
 ;;                                        (traverse-context% #(2))
@@ -84,6 +84,10 @@
 ;;                                        (remove-processes!% '(3 4 5)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
+;;
+;; 最も内側の RHS の or% が #t だと、ある書換えが起こった後、同じ LHS
+;; に対して別のガードを試し、それが成功した場合には再び書き換えようとす
+;; る。しかし LHS はすでに書き換わっているのでグラフが壊れる。
 
 ;; ---- ルールの例 (型検査中にリンクを find)
 
@@ -132,16 +136,16 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0)) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0)) #(#f)))
-;;       (or% #f ;; clauses
+;;       (or% #t ;; clauses
 ;;            (seq% (type-check% "same_len" #(0 #f 1 #f))
 ;;                  (traverse-context% #(0 (2) 1 (3)))
-;;                  (or% ;; RHSes
-;;                   (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
-;;                         (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
-;;                         (or% (seq% (traverse-context% #(4))
-;;                                    (traverse-context% #(6))
-;;                                    (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
-;;                                    (remove-processes% '(3 4 5 6)))))))))
+;;                  (or% #t ;; RHSes
+;;                       (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
+;;                             (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
+;;                             (or% (seq% (traverse-context% #(4))
+;;                                        (traverse-context% #(6))
+;;                                        (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
+;;                                        (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 
@@ -168,7 +172,7 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0))) #(#f))
-;;       (or% ;; clauses
-;;         (seq% (traverse-context% #(1 0))
-;;               (instantiate-process!% '(("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))))
-;;               (remove-processes!% '(0 1 2)))))
+;;       (or% #t ;; clauses
+;;            (seq% (traverse-context% #(1 0))
+;;                  (instantiate-process!% '(("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))))
+;;                  (remove-processes!% '(0 1 2)))))
