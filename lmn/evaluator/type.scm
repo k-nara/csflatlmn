@@ -64,7 +64,9 @@
 ;; patterns はプロセステンプレートのリスト、 subgoals は型名のリスト、
 ;; pattern-bindings や subgoal-args はそれぞれ自然数 or リストで囲まれ
 ;; た自然数 or #f のリストで、リストで囲まれた自然数は型の引数を表す。
-;; サブゴールの引数リストには #f は現れてはならない。
+;; 型の arity がＮのとき、Ｎつの引数のそれぞれが pattern-bindings また
+;; は subgoal-args にちょうど１回づつ出現しなければならない。サブゴール
+;; の引数リストには #f は現れてはならない。
 
 ;; ---- type-check%
 
