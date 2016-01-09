@@ -12,7 +12,53 @@
 
 (define test-env0
   (rlet1 env (make-hash-table 'string=?)
-    (hash-table-put! env "link" type-subr-link)))
+    (hash-table-put! env "link" type-subr-link)
+    (hash-table-put! env "int" type-subr-int)))
+
+(test-section "type-subr-int success")
+
+(let ([proc (sexp->atomset '(("a" ("1"))))]
+      [known-atoms (make-atomset)]
+      [known-atoms2 #f]
+      [lstack (make-stack)]
+      [lstack2 #f]
+      [pstack (make-stack)]
+      [pstack2 #f])
+  (test* "match result" 'success
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
+                (type-check% "int" #(0)))
+          :next (^ (_ k l _ p _)
+                  (set! known-atoms2 (atomset-copy k))
+                  (set! lstack2 (stack-copy l))
+                  (set! pstack2 (stack-copy p))
+                  'success)
+          proc known-atoms lstack #f pstack test-env0))
+  (test* "known-atoms (1)" '("a") (atomset-map-atoms atom-name known-atoms2) (set-equal?))
+  (test* "known-atoms (2)" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack (1)" 1 (stack-length lstack2))
+  (test* "lstack (2)" 0 (stack-length lstack))
+  (test* "pstack (1)" 1 (stack-length pstack2))
+  (test* "pstack (2)" 0 (stack-length pstack))
+  (test* "proc" '("a" "1") (atomset-map-atoms atom-name proc) (set-equal?)))
+
+(test-section "type-subr-int failure")
+
+(let ([proc (sexp->atomset '(("a" ("b"))))]
+      [known-atoms (make-atomset)]
+      [lstack (make-stack)]
+      [pstack (make-stack)]
+      [next-called #f])
+  (test* "match result" #f
+         ((seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
+                (type-check% "int" #(0)))
+          :next (^ _ (set! next-called #t) #t) proc known-atoms lstack #f pstack test-env0))
+  (test* "next-called" #f next-called)
+  (test* "known-atoms" '() (atomset-map-atoms atom-name known-atoms) (set-equal?))
+  (test* "lstack" 0 (stack-length lstack))
+  (test* "pstack" 0 (stack-length pstack))
+  (test* "proc" '("a" "b") (atomset-map-atoms atom-name proc) (set-equal?)))
+
+;; ----------------------
 
 (test-section "type-subr-link success (all args are specified)")
 
@@ -22,8 +68,7 @@
       [lstack (make-stack)]
       [lstack2 #f]
       [pstack (make-stack)]
-      [pstack2 #f]
-      [next-args #f])
+      [pstack2 #f])
   (test* "match result" 'success
          ((seq% (match-component% (sexp->atomset '(("a" ("b" 0) ("c" 1 2)))) #(#f #f #f))
                 (type-check% "link" #(0 1)))
