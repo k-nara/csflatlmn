@@ -59,12 +59,10 @@
           [(apply (car fns) :next next args) => identity]
           [else (loop (cdr fns))])))
 
-;; next が #t を返す限り next を呼び出し続け、 next が初めて返した #t
-;; 以外の値を返す。
+;; next が #t を返す限り next を呼び出し続け、 next が一度以上 #t を返
+;; したなら #t を、さもなければ #f を返す。
 (define% (loop% :rest args)
-  (let1 retval #f
-    (while (set! retval (apply next args)))
-    retval))
+  (and (apply next args) (begin (while (apply next args)) #t)))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
