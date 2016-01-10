@@ -1,3 +1,6 @@
+;; *FIXME* エラーメッセージの質を改善したい
+;; *FIXME* 実行効率が悪すぎ (せめてエラーメッセージは lazy に構築しよう)
+
 (define-module lmn.util.peg
   (use util.stream)
   (use util.queue)
@@ -18,87 +21,6 @@
 (select-module lmn.util.peg)
 
 ;; 再帰下降のパーサーコンビネーターを提供する。
-
-;; *TODO* テストを書く
-;; *TODO* エラーメッセージに "while parsing ~" ほしいかな？やっぱり
-
-;; *FIXME* 実行効率が悪すぎ (せめてエラーメッセージは lazy に構築しよう)
-
-;; *FIXME* 下の例でエラーメッセージが闇
-;;
-;; (use srfi-13) ;; string>
-;;
-;; (define $comment
-;;   ($or ($seq ($or ($c #\%) ($s "//"))
-;;              ($many ($none-of #[\n]))
-;;              ($or ($c #\newline) $eof))
-;;        ($seq ($s "/*")
-;;              ($many-till ($any) ($s "*/")))))
-;;
-;; (define ($token parser)
-;;   ($seq0 parser ($many ($or $comment ($any #[\x09-\x0d ])))))
-;;
-;; (define (make-expr-parser term ops)
-;;   ;;  Make a parser that parses a pre/in-fix expression. OPS must be a
-;;   ;; list of operators of the form (PRIORITY TYPE OP OP ...) where
-;;   ;; PRIORITY is an integer and TYPE is one of 'left 'right or
-;;   ;; 'prefix. OP is a list of the form (STR FN) for infix operators or
-;;   ;; (STR FN . ARITY) for prefix operators, where ARITY is a natural
-;;   ;; number or nil. If ARITY is nil, the operator is counted as an
-;;   ;; unray operator.
-;;   (letrec ([expr
-;;             (let loop ([ops (sort ops (^(l1 l2) (< (car l1) (car l2))))])
-;;               (if (null? ops)
-;;                   ($or ($between ($token ($c #\())
-;;                                  ($g ($delay expr) "expression")
-;;                                  ($token ($c #\))))
-;;                        term)
-;;                   (let ([$subexp ($g (loop (cdr ops)) "term")]
-;;                         [$op (apply $or (map (^o ($seq ($s (car o)) ($ret (cdr o))))
-;;                                              (sort (cddar ops) (^(o1 o2) (string> (car o1) (car o2))))))])
-;;                     (case (cadar ops)
-;;                       [(prefix)
-;;                        ($or ($g ($do* op <- ($token $op)
-;;                                       terms <- ($rep $subexp (if (integer? (cdr op)) (cdr op) 1))
-;;                                       ($ret (apply (car op) terms)))
-;;                                 "prefix operation" #t)
-;;                             $subexp)]
-;;                       [(left)
-;;                        ($chain-left $subexp ($token ($>> $op car)))]
-;;                       [(right)
-;;                        ($chain-right $subexp ($token ($>> $op car)))]))))])
-;;     expr))
-;;
-;; (parse-string
-;;  (letrec ([term ($or ($token ($do* x <- ($many1 ($any #[0-9]))
-;;                                    (let1 val (string->number (list->string x))
-;;                                      ($ret val #`"integer literal ,val"))))
-;;                      ($g ($between ($token ($c #\[))
-;;                                    ($sep-by ($delay expr) ($token ($c #\,)))
-;;                                    ($token ($c #\])))
-;;                          "list"))]
-;;           [expr (make-expr-parser
-;;                  term
-;;                  `((0 left
-;;                       ("times" ,*))
-;;                    (1 prefix
-;;                       ("twice" ,(^x (* x 2)))
-;;                       ("multiply" ,* . 2))
-;;                    (100 left
-;;                         ("*" ,*)
-;;                         ("/" ,/))
-;;                    (200 right
-;;                         ("^" ,expt))
-;;                    (50 left
-;;                        ("-" ,-)
-;;                        ("+" ,+)
-;;                        ("++" ,append!))
-;;                    (1000 prefix
-;;                          ("-" ,-)
-;;                          ("+/" ,(^x (apply + x))))
-;;                    ))])
-;;    expr)
-;;  "twice (-)")
 
 ;; [内部実装について]
 ;;

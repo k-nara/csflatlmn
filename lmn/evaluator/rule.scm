@@ -24,20 +24,23 @@
 ;;     patterns: (sexp->atomset '(("a" 0  1  2))) (sexp->atomset '(("b")))
 ;;                l0 l1 l2
 ;;     bindings: (#f #f #f), ()
-;;     clauses: clause{            l3l4 ; -> l3 がポート, l4 が arg
+;;     clauses: clause{             l3
 ;;                  guards: ("hoge" #f 0)
 ;;                            p2
-;;                  contexts: (0 3)
+;;                  contexts: (0 (3)) ; -> l0 が文脈の第０"引数", l3 は第１"ポート"
 ;;                  rhs: rule{         p3
 ;;                           patterns: (sexp->atomset '(("c" 0)))
-;;                           bindings: (4) ; -> l3 が 最初の pattern の第 0 ポート
+;;                           bindings: (3) ; -> l3 が 最初の pattern の第 0 引数
 ;;                           clauses: clause{
 ;;                                        guards: ("<" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: ("d" 3) (5 1) (5 2)
-;;                                             ;; -> instantiate 後、 p3, p4, p5 が削除
-;;                                             ;;    (最も内側の rule で作られた proc)
+;;                                        rhs: template {
+;;                                                 processes: ("d" 3) (5 1) (5 2)
+;;                                                 links:
+;;                                             }
+;;                                        ;; -> instantiate 後、 p3, p4, p5 が削除
+;;                                        ;;    (最も内側の rule で作られた proc)
 ;;                                    }
 ;;                       },
 ;;                       rule{         p3
@@ -47,7 +50,10 @@
 ;;                                        guards: (">" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: ("e" 3) (4 1) (4 2)
+;;                                        rhs: template {
+;;                                                 processes: ("e" 3) (4 1) (4 2)
+;;                                                 links:
+;;                                             }
 ;;                                    }
 ;;                       }
 ;;              }
@@ -56,32 +62,33 @@
 ;; ※なぜ連結成分ごとにパターンマッチをするか？
 ;; → １つの連結成分のパターンマッチングで最大１回しか findatom しないから
 ;; (２回以上 findatom するとルーチン内部でバックトラックが発生して厄介)
-;;
-;; ※guardsの引数に #f がある場合はポートとargの両方が必要
-;;   (ポートは明らかに必要、arg は後のmatch-componentのbindingで使う)
 
 ;; [例1c.プロシージャを生成]
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f #f))
 ;;       (match-component% (sexp->atomset '(("b"))) #())
-;;       (or% ;; clauses
-;;        (seq% (type-check% "hoge" #(#f 0))
-;;              (traverse-context% #(0 3))
-;;              (or% ;; RHSes
-;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
-;;                     (or% (seq% (type-check% "<" #(1 2))
-;;                                (traverse-context% #(1))
-;;                                (traverse-context% #(2))
-;;                                (instantiate-process!% '(("d" 5) (5 1) (5 2)))
-;;                                (remove-processes!% '(3 4 5)))))
-;;               (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
-;;                     (or% (seq% (type-check% ">" #(1 2))
-;;                                (traverse-context% #(1))
-;;                                (traverse-context% #(2))
-;;                                (instantiate-process!% '(("e" 3) (4 1) (4 2)))
-;;                                (remove-processes!% '(3 4 5)))))))))
+;;       (or% #t ;; clauses
+;;            (seq% (type-check% "hoge" #(#f 0))
+;;                  (traverse-context% #(0 (3)))
+;;                  (or% #t ;; RHSes
+;;                       (seq% (match-component% (sexp->atomset '(("c" 0))) #(3))
+;;                             (or% #f ;; RHSes (最も内側の RHS では or% はループしてはいけない)
+;;                                  (seq% (type-check% "<" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
+;;                                        (instantiate-process!% '(("d" 5) (5 1) (5 2)))
+;;                                        (remove-processes!% '(3 4 5)))))
+;;                       (seq% (match-component% (sexp->atomset '(("c" 0))) #(4))
+;;                             (or% #f
+;;                                  (seq% (type-check% ">" #(1 2))
+;;                                        (traverse-context% #(1))
+;;                                        (traverse-context% #(2))
+;;                                        (instantiate-process!% '(("e" 3) (4 1) (4 2)))
+;;                                        (remove-processes!% '(3 4 5)))))))))
 ;;
-;; ※こっちがルールから実際に生成されるオブジェクト
+;; 最も内側の RHS の or% が #t だと、ある書換えが起こった後、同じ LHS
+;; に対して別のガードを試し、それが成功した場合には再び書き換えようとす
+;; る。しかし LHS はすでに書き換わっているのでグラフが壊れる。
 
 ;; ---- ルールの例 (型検査中にリンクを find)
 
@@ -105,22 +112,24 @@
 ;;     patterns: (sexp->atomset '(("a" 0))) (sexp->atomset '(("b" 0)))
 ;;                l0    l1
 ;;     bindings: (#f), (#f)
-;;     clauses: clause{                  l2l3 l4l5
+;;     clauses: clause{                   l2   l3
 ;;                  guards: ("same_len" 0 #f 1 #f)
 ;;                            p2
-;;                  contexts: (0 2 1 4)
+;;                  contexts: (0 (2) 1 (3))
 ;;                  rhs: rule{         p3
 ;;                           patterns: (sexp->atomset '(("cons" 0 1 2))),
 ;;                                     p4
 ;;                                     (sexp->atomset '(("cons" 0 1 2)))
-;;                                      l6 l7     l8 l9
-;;                           bindings: (#f #f 3) (#f #f 5)
+;;                                      l4 l5     l6 l7
+;;                           bindings: (#f #f 2) (#f #f 3)
 ;;                           clauses: clause{
 ;;                                        guards:
 ;;                                                  p5  p6
-;;                                        contexts: (6) (8)
-;;                                        rhs: ("=" 2 7) ("=" 4 9)
-;;                                             ; -> p3, p4, p5, p6 が削除される
+;;                                        contexts: (4) (6)
+;;                                        rhs: template {
+;;                                                 processes:
+;;                                                 links: (2 5) (3 7)
+;;                                             }
 ;;                                    }
 ;;                       }
 ;;              }
@@ -130,16 +139,16 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0)) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0)) #(#f)))
-;;       (or% ;; clauses
-;;        (seq% (type-check% "same_len" #(0 #f 1 #f))
-;;              (traverse-context% #(0 2 1 3))
-;;              (or% ;; RHSes
-;;               (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
-;;                     (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
-;;                     (or% (seq% (traverse-context% #(6))
-;;                                (traverse-context% #(8))
-;;                                (instantiate-process!% '(("=" 2 7) ("=" 4 9)))
-;;                                (remove-processes% '(3 4 5 6)))))))))
+;;       (or% #t ;; clauses
+;;            (seq% (type-check% "same_len" #(0 #f 1 #f))
+;;                  (traverse-context% #(0 (2) 1 (3)))
+;;                  (or% #t ;; RHSes
+;;                       (seq% (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 2))
+;;                             (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
+;;                             (or% (seq% (traverse-context% #(4))
+;;                                        (traverse-context% #(6))
+;;                                        (make-links!% '((2 5) (3 7)))
+;;                                        (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
 
@@ -158,7 +167,10 @@
 ;;     clauses: clause{
 ;;                  guards:   p2
 ;;                  contexts: (1 0)
-;;                  rhs: ("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))
+;;                  rhs: template {
+;;                           processes:  ("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))
+;;                           links:
+;;                       }
 ;;              }
 ;; }
 
@@ -166,7 +178,7 @@
 ;;
 ;; (seq% (match-component% (sexp->atomset '(("a" 0))) #(#f))
 ;;       (match-component% (sexp->atomset '(("b" 0))) #(#f))
-;;       (or% ;; clauses
-;;         (seq% (traverse-context% #(1 0))
-;;               (instantiate-process!% '(("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))))
-;;               (remove-processes!% '(0 1 2)))))
+;;       (or% #t ;; clauses
+;;            (seq% (traverse-context% #(1 0))
+;;                  (instantiate-process!% '(("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))))
+;;                  (remove-processes!% '(0 1 2)))))

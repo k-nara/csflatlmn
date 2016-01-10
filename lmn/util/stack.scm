@@ -1,7 +1,7 @@
 (define-module lmn.util.stack
   (export <stack> *stack-allocation-unit*
-          make-stack stack-push! stack-pop! stack-pop-until! stack-length
-          stack-empty? stack-ref stack-set!))
+          make-stack stack-copy stack-push! stack-pop! stack-set-length!
+          stack-length stack-empty? stack-ref stack-set!))
 
 (select-module lmn.util.stack)
 
@@ -21,6 +21,11 @@
 ;; スタックを作成する。
 (define (make-stack)
   (make <stack> :data (make-vector *stack-allocation-unit*) :length 0))
+
+;; STACK の浅いコピーを作る。 STACK の中に含まれる要素まではコピーされ
+;; ない。
+(define (stack-copy stack)
+  (make <stack> :data (vector-copy (slot-ref stack 'data)) :length (slot-ref stack 'length)))
 
 ;; STACK に含まれる要素の数を返す。
 (define (stack-length stack)
@@ -44,8 +49,11 @@
     (vector-set! data length obj)
     (slot-set! stack 'length (+ 1 length))))
 
-;; STACK のオブジェクト数が N になるまで先頭から要素を捨てる。
-(define (stack-pop-until! stack n)
+;; STACK のオブジェクト数が N になるように先頭から要素を捨てる (N が小
+;; さい場合)、あるいは未定義値を先頭に加える (N が大きい場合) 。
+(define (stack-set-length! stack n)
+  (when (< n 0)
+    (error "Stack length cannot be negative."))
   (slot-set! stack 'length n))
 
 ;; STACK からオブジェクトを N つ捨てる。pushした数以上のオブジェクトを

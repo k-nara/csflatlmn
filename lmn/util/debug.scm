@@ -1,5 +1,6 @@
 (define-module lmn.util.debug
   (use gauche.time)
+  (use srfi-13)
   (export dump dump-level-reset
           make-timecounter timecounter-start timecounter-end
           timecounter-report-all timecounter-reset-all
@@ -17,7 +18,10 @@
 ;; ベルをスタックにプッシュする。 'pop の場合、前回プッシュされたインデ
 ;; ントレベルに戻す。
 (define (dump dlevel stacking :rest args)
-  (apply print (append (make-list (max (car *debug-level*) 0) " | ") (map x->string args)))
+  (apply print
+         (string-concatenate (make-list (max (car *debug-level*) 0) " | "))
+         (cond [(< dlevel 0) "<< "] [(> dlevel 0) ">> "] [else ""])
+         (map x->string args))
   (case stacking
     [(push) (push! *debug-level* (car *debug-level*))]
     [(pop) (pop! *debug-level*)])

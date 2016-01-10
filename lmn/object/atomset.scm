@@ -1,3 +1,5 @@
+;; *FIXME* atomset-add-direct-link! の実装がエレガントでない
+
 (define-module lmn.object.atomset
   (use gauche.collection)
   (use lmn.util.list)
@@ -34,8 +36,6 @@
 ;; うな <atomset> を ill-formed であると言って区別する。対して、
 ;; ill-formed でない <atomset> は LMNtal の適切な部分プロセスを表す。特
 ;; に０価の部分プロセスをプロセスと呼ぶ。
-
-;; *TODO* atomset-add-direct-link! の実装がエレガントでない
 
 ;; ---- <atomset>
 

@@ -1,15 +1,12 @@
+;; *FIXME* apply を減らしたい。next をカリー化したい (-cons% がエレガントでない)
+
 (define-module lmn.util.pp
-  (export lambda% define% seq% or%))
+  (export lambda% define% seq% or% loop%))
 
 (select-module lmn.util.pp)
 
 ;; 戻り先を指定して呼び出せる関数 (部分手続きと呼ぶ) を用いて、動的にバッ
 ;; クトラックの手続きを生成するためのユーティリティ群を提供する。
-
-;; *NOTE* pp に :next を渡すと後続が指定された新しい pp が返ってくるよ
-;; うな実装のほうがいいかも？少なくとも seq% の実装は多少綺麗になるよ
-
-;; *TODO* -cons% の実装があまりエレガントでない
 
 ;; (内部関数) 引数の個数を一般化した identity
 (define (-identity% :rest x)
@@ -48,17 +45,35 @@
 
 ;; １つ以上の部分手続きを :next で連結して、これらを順に実行する新しい
 ;; 部分手続きをつくる。
-(define (seq% fn :rest fns)
-  (if (null? fns) fn (-cons% fn (apply seq% fns))))
+(define (seq% :rest fns)
+  (cond [(null? fns) (lambda% x (apply next x))]
+        [(null? (cdr fns)) (car fns)]
+        [else (-cons% (car fns) (apply seq% (cdr fns)))]))
 
-;; いくつかの部分手続きから、これらを上から順に試して初めて得られた
-;; non-#f な値を返す部分手続きを作る。 non-#f な値が得られなければ#f を
-;; 返す。 next はそれぞれの選択肢について呼び出される。
-(define% ((or% :rest fns) :rest args)
-  (let loop ([fns fns])
-    (cond [(null? fns) #f]
-          [(apply (car fns) :next next args) => identity]
-          [else (loop (cdr fns))])))
+;; いくつかの部分手続きから、それらを上から、 non-#f な値が得られるまで
+;; 順に試す新しい部分手続きを作る。すべての部分手続きが #f を返した場合、
+;; #f を返す。どこかで non-#f な値が得られた場合、もし LOOP? が #f なら、
+;; それ以降の部分手続きは呼び出さず、始めて得られた この non-#f な値を
+;; ただちに返す。さもなければ、 non-#f な値を返した部分手続きを除いた残
+;; りのすべての部分手続きを再び上から順に試し、すべてが #f を返したなら
+;; ば #t を、さもなければこれを繰返す。
+(define% ((or% loop? :rest fns) :rest args)
+  (let1 skip-fn #f
+    (let loop ([fns2 fns])
+      (cond [(null? fns2) (and skip-fn #t)]
+            [(eq? skip-fn (car fns2)) (loop (cdr fns2))]
+            [else
+             (let1 retval (apply (car fns2) :next next args)
+               (cond [(and (eq? retval #t) loop?)
+                      (set! skip-fn (car fns2))
+                      (loop fns)]
+                     [retval => identity]
+                     [else (loop (cdr fns2))]))]))))
+
+;; next が #t を返す限り next を呼び出し続け、 next が一度以上 #t を返
+;; したなら #t を、さもなければ #f を返す。
+(define% (loop% :rest args)
+  (and (apply next args) (begin (while (apply next args)) #t)))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
