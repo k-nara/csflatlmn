@@ -35,9 +35,12 @@
 ;;                                        guards: ("<" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: ("d" 3) (5 1) (5 2)
-;;                                             ;; -> instantiate 後、 p3, p4, p5 が削除
-;;                                             ;;    (最も内側の rule で作られた proc)
+;;                                        rhs: template {
+;;                                                 processes: ("d" 3) (5 1) (5 2)
+;;                                                 links:
+;;                                             }
+;;                                        ;; -> instantiate 後、 p3, p4, p5 が削除
+;;                                        ;;    (最も内側の rule で作られた proc)
 ;;                                    }
 ;;                       },
 ;;                       rule{         p3
@@ -47,7 +50,10 @@
 ;;                                        guards: (">" 1 2)
 ;;                                                  p4  p5
 ;;                                        contexts: (1) (2)
-;;                                        rhs: ("e" 3) (4 1) (4 2)
+;;                                        rhs: template {
+;;                                                 processes: ("e" 3) (4 1) (4 2)
+;;                                                 links:
+;;                                             }
 ;;                                    }
 ;;                       }
 ;;              }
@@ -56,9 +62,6 @@
 ;; ※なぜ連結成分ごとにパターンマッチをするか？
 ;; → １つの連結成分のパターンマッチングで最大１回しか findatom しないから
 ;; (２回以上 findatom するとルーチン内部でバックトラックが発生して厄介)
-;;
-;; ※guardsの引数に #f がある場合はポートとargの両方が必要
-;;   (ポートは明らかに必要、arg は後のmatch-componentのbindingで使う)
 
 ;; [例1c.プロシージャを生成]
 ;;
@@ -82,8 +85,6 @@
 ;;                                        (traverse-context% #(2))
 ;;                                        (instantiate-process!% '(("e" 3) (4 1) (4 2)))
 ;;                                        (remove-processes!% '(3 4 5)))))))))
-;;
-;; ※こっちがルールから実際に生成されるオブジェクト
 ;;
 ;; 最も内側の RHS の or% が #t だと、ある書換えが起こった後、同じ LHS
 ;; に対して別のガードを試し、それが成功した場合には再び書き換えようとす
@@ -125,8 +126,10 @@
 ;;                                        guards:
 ;;                                                  p5  p6
 ;;                                        contexts: (4) (6)
-;;                                        rhs: ("=" 2 5) ("=" 3 7)
-;;                                             ; -> p3, p4, p5, p6 が削除される
+;;                                        rhs: template {
+;;                                                 processes:
+;;                                                 links: (2 5) (3 7)
+;;                                             }
 ;;                                    }
 ;;                       }
 ;;              }
@@ -144,7 +147,7 @@
 ;;                             (match-component% (sexp->atomset '(("cons" 0 1 2))) #(#f #f 3))
 ;;                             (or% (seq% (traverse-context% #(4))
 ;;                                        (traverse-context% #(6))
-;;                                        (instantiate-process!% '(("=" 2 5) ("=" 3 7)))
+;;                                        (make-links!% '((2 5) (3 7)))
 ;;                                        (remove-processes% '(3 4 5 6)))))))))
 ;;
 ;; ※こっちがルールから実際に生成されるオブジェクト
@@ -164,7 +167,10 @@
 ;;     clauses: clause{
 ;;                  guards:   p2
 ;;                  contexts: (1 0)
-;;                  rhs: ("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))
+;;                  rhs: template {
+;;                           processes:  ("c" (2 ("d" L1 L2 L1))) ("b" L2 ("e"))
+;;                           links:
+;;                       }
 ;;              }
 ;; }
 

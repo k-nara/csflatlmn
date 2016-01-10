@@ -1,4 +1,4 @@
-;; *TODO* atomset-add-direct-link! の実装がエレガントでない
+;; *FIXME* atomset-add-direct-link! の実装がエレガントでない
 
 (define-module lmn.object.atomset
   (use gauche.collection)

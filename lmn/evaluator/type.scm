@@ -1,8 +1,9 @@
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
 ;; *NOTE* "<" 型などの引数には #f を認めない
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
-;; *TODO* TC-LSTACK 引数まわりの実装が後付けなので整理されていない
-;; *TODO* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
+;; *NOTE* 型の引数は型ルール中にちょうど１度出現する必要がある (subgoal-args の制約から)
+;; *FIXME* TC-LSTACK 引数まわりの実装が後付けなので整理されていない
+;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
 
 (define-module lmn.evaluator.type
   (use gauche.collection) ;; map-to
@@ -17,7 +18,7 @@
 
 ;; ※このファイルを読む前に evaluator/operations.scm を読むべき
 
-;; プロセス文脈型検査を行う手続きを提供する。
+;; 型定義に基づいてプロセス文脈のトラバースを行うためのしくみを提供する。
 
 ;; ---- 型の例
 
@@ -39,7 +40,8 @@
 ;;                args:     (a1 a0) (a3 a2)
 ;;            }
 ;;            typerule {
-;;                patterns: (sexp->atomset '(("cons" 0 1 2))), (sexp->atomset '(("cons" 0 1 2)))
+;;                patterns: (sexp->atomset '(("cons" 0 1 2))),
+;;                          (sexp->atomset '(("cons" 0 1 2)))
 ;;                           l0 l1     l2 l3
 ;;                bindings: (#f #f a1) (#f #f a3)
 ;;                subgoals: "same_len"
@@ -60,29 +62,23 @@
 ;;                            '([#f #f (1)] [#f #f (3)])
 ;;                            '("same_len")
 ;;                            '([(0) 1 (2) 3])))
-;;
-;; patterns はプロセステンプレートのリスト、 subgoals は型名のリスト、
-;; pattern-bindings や subgoal-args はそれぞれ自然数 or リストで囲まれ
-;; た自然数 or #f のリストで、リストで囲まれた自然数は型の引数を表す。
-;; 型の arity がＮのとき、Ｎつの引数のそれぞれが pattern-bindings また
-;; は subgoal-args にちょうど１回づつ出現しなければならない。サブゴール
-;; の引数リストには #f は現れてはならない。
 
 ;; ---- type-check%
 
 ;; ハッシュテーブル TYPE-ENV から型の名前 NAME に対応する型定義のオブジェ
-;; クトを探して、呼び出す。 ARGS は長さが ARITY のベクタで、それぞれの
-;; 要素は整数, 整数一つからなるリスト, または #f である。 TC-LSTACK が
-;; #f でない場合、 ARGS に #f が含まれてはならず、これがそのまま型定義
-;; のオブジェクトに渡される。そうでない場合、 ARGS にリストが含まれては
-;; ならず、1. LSTACK, KNOWN-ATOMS, PSTACK を保護するために、 TC-LSTACK
-;; を LSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を KNOWN-ATOMS
-;; の複製、 PSTACK をフレッシュな空のスタックとし、2. 型検査の結果得ら
-;; れたポート・引数が TC-LSTACK の末尾に push されたかのように振る舞う
-;; よう ARGS を適当に instantiate して #f を消去し、また TC-LSTACK の末
-;; 尾にスペースを確保し、その上で 3. 型定義のオブジェクトを呼び出す。た
-;; だし、 next の引数にはここで新たにアロケートされたスタックや
-;; atomset ではなく、この関数の引数として渡されたものをそのまま使う。
+;; クト (type-subr-* で始まる組込みの型定義か、 `make-type' で作られた
+;; ユーザー定義型) を探して、呼び出す。 ARGS は長さが ARITY のベクタで、
+;; それぞれの要素は整数, 整数一つからなるリスト, または #f である。
+;; TC-LSTACK が#f でない場合、 ARGS に #f が含まれてはならず、これがそ
+;; のまま型定義のオブジェクトに渡される。そうでない場合、 ARGS にリスト
+;; が含まれてはならず、1. LSTACK, KNOWN-ATOMS, PSTACK を保護するために、
+;; TC-LSTACKを LSTACK、 LSTACK を古い LSTACK の複製、KNOWN-ATOMS を
+;; KNOWN-ATOMSの複製、 PSTACK をフレッシュな空のスタックとし、2. 型検査
+;; の結果得られたポート・引数が TC-LSTACK の末尾に push されたかのよう
+;; に振る舞うよう ARGS を適当に instantiate して #f を消去し、また
+;; TC-LSTACK の末尾にスペースを確保し、その上で 3. 型定義のオブジェクト
+;; を呼び出す。ただし、 next の引数にはここで新たにアロケートされたスタッ
+;; クやatomset ではなく、この関数の引数として渡されたものをそのまま使う。
 (define% ((type-check% name args) proc known-atoms lstack tc-lstack pstack type-env)
   (let1 type (hash-table-get type-env name #f)
     (cond [(not type)
@@ -107,19 +103,38 @@
 ;; ---- make-type
 
 ;; ARITY, PATTERNS, PATTERN-BINDINGS, SUBGOALS, SUBGOAL-ARGS から型検査
-;; を行う、 (カリー化された) 部分手続きを構成する。得られた部分手続きは
-;; 引数にもとづいて型検査を行い、成功した場合は next を呼び出し、その戻
-;; り値を全体の戻り値とする。失敗した場合 #f を返す。 ARGS は長さが
-;; ARITY のベクタで、それぞれの要素は整数か整数一つからなるリストである。
-;; ARGS の長さが間違っている場合、エラーを返す。 ARGS の第 K 要素が整数
-;; N の場合、第 K ポートが LSTACK の N 番目のポートになっているようなプ
-;; ロセス文脈が検査対象となる (N が負の場合はスタックの先頭から数える
-;; → stack-ref のドキュメントを参照) 。整数のリスト (M) の場合、検査対
-;; 象のプロセス文脈の第 K ポートは型検査が成功するように適当に選ばれ、
-;; next を呼び出す前にそのポートが TC-LSTACK の M 番目にセットされる。
-;; ARGS にリストが含まれているとき、型検査が成功するようなポートの選び
-;; 方が複数ある場合がある。まだ候補が残っているときに next が #fを返し
-;; た場合、別の候補を TC-LSTACK にセットし、ふたたび next を呼び出す。
+;; を行う、 (カリー化された) 部分手続きを構成する。ただし ARITY は型の
+;; 価数、 PATTERNS は型ルールの左辺に当たる連結な部分プロセスのリスト、
+;; SUBGOALS は型ルールの右辺に当たる型名のリスト。 PATTERN-BINDINGS は
+;; PATTERNS に含まれる自由リンクのバインディングを指定するもので、
+;; match-component% のBINDING 引数に似ているが #f, 自然数に加えて１つの
+;; 自然数からなるリストを書くことができる点で異なる。PATTERN-BINDINGS,
+;; 中に書かれた１つの自然数からなるリスト (N) は、この型ルールが呼び出
+;; す際に与えられた引数の N 番目を表す。SUBGOAL-ARGS も同様に SUBGOALS
+;; に含まれる型を呼び出す際の引数を指定するもので、 type-check% の
+;; ARGS 引数に似ているが、自然数１つからなるリストを書くことができる。
+;; また #f を書くことはできない。 ARITY が k のとき、 (0) から (k-1) ま
+;; での k つの引数が、 PATTERN-BINDINGS か SUBGOAL-ARGS のいづれかに、
+;; それぞれちょうど１度づつ出現しなければならない。
+;;
+;; 得られた部分手続きは引数にもとづいて型検査を行い、成功した場合は
+;; next を呼び出し、その戻り値を全体の戻り値とする。失敗した場合 #f を
+;; 返す。 ARGS は長さが ARITY のベクタで、それぞれの要素は整数か整数一
+;; つからなるリストである。ARGS の長さが間違っている場合、エラーを返す。
+;; ARGS の第 K 要素が整数N の場合、第 K ポートが LOCAL-STACK の N 番目
+;; のポートになっているようなプロセス文脈が検査対象となる。整数のリスト
+;; (M) の場合、検査対象のプロセス文脈の第 K ポートは型検査が成功するよ
+;; うに適当に選ばれ、next を呼び出す前にそのポートが TC-LSTACKの M 番目
+;; にセットされる。ARGS にリストが含まれているとき、型検査が成功するよ
+;; うなポートの選び方が複数ある場合がある。まだ候補が残っているときに
+;; next が #fを返した場合、別の候補を TC-LSTACK にセットし、ふたたび
+;; next を呼び出す。
+;;
+;; 実装上の理由から、この部分関数は型検査の過程で LOCAL-STACK, PSTACK,
+;; KNOWN-ATOMS を破壊的に変更する (ただし、この関数から "戻る" ときに復
+;; 元されることは保証される) 。そのため、普通は `type-check%' を経由し
+;; て、 LSTACK や KNOWN-ATOMS を保護したうえでこの部分関数を呼び出すべ
+;; きである。
 (define% (((make-type-rule arity patterns pattern-bindings subgoals subgoal-args) args)
           proc known-atoms local-stack global-stack pstack type-env)
   ;; 引数の数を確認
@@ -157,9 +172,9 @@
       (apply seq% (map (^(s a) (type-check% s a)) subgoals subargs)))
      :next next proc known-atoms local-stack global-stack pstack type-env)))
 
-;; [pattern-bindings, subgoal-args の instantiation 処理]
+;; [pattern-bindings, subgoal-args の instantiation 処理の概要]
 ;;
-;; ５価の型で、
+;; 例えば、５価の型で、
 ;; - テンプレートの引数が '([#f #f (1)] [(4)] [0 #f #f (3)])
 ;; - 型検査の引数が '([(0) 1 (2) 3] [4])
 ;;
@@ -175,7 +190,6 @@
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1
 ;; xx a3 a1 xx      xx l0 l1
-;;                     --2--
 ;;
 ;;           l2
 ;; [(4)] は [#f] と展開されて、戻り値リストに (n+2 . 2) がpush される。
@@ -183,14 +197,12 @@
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1 +2
 ;; xx a3 a1 xx      xx l0 l1 l2
-;;                     ----3---
 ;;
 ;;                       l3 l4
 ;; [0 #f #f (3)] は [n+0 #f #f 1] と展開されて、マッチ後のスタックは
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1 +2 +3 +4
 ;; xx a3 a1 xx      xx l0 l1 l2 l3 l4
-;;                     -------5------
 ;;
 ;; マッチがすべて終了したら、戻り値リストにしたがって tc-lstack に
 ;; lstack のポートとそのパートナーを移す。たとえば戻り値リストの (n+2
@@ -201,17 +213,19 @@
 ;;
 ;;  0  1  2  3 ... n-1 +0 +1 +2 +3 +4 ... k-1
 ;; xx a3 a1 xx      xx l0 l1 l2 l3 l4 ...  xx
-;;                     -------5------
 ;;
 ;; [4] は [n+4] に展開される。
 
 ;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
-;; のどれかが成功すれば成功するような型検査の手続きを生成する。
+;; のどれかが成功すれば成功するような型検査の手続きを生成する。合成には
+;; (pa$ or% #t) を用いるので、 next の戻り値が #t である限り型検査を繰
+;; 返す。
 (define ((make-type :rest type-rules) args)
   (apply or% #t (map (^r (r args)) type-rules)))
 
 ;; ---- built-in data types
 
+;; 組込み型 "int" の実装。
 (define (type-subr-int args)
   (unless (= 1 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `int'"))
@@ -223,10 +237,7 @@
             (string->number (atom-name (port-atom (port-partner (stack-ref local-stack arg))))))
            (next proc known-atoms local-stack global-stack pstack type-env)))))
 
-;; ---- built-in type "link"
-
-;; 組み込み型 "link" の実装。 ARGS は２要素のベクタで、その要素は自然数
-;; または #f である。 ARGS の長さが異なる場合はエラーを返す。
+;; 組み込み型 "link" の実装。
 (define (type-subr-link args)
   (unless (= 2 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `link'"))

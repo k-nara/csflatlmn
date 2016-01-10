@@ -1,4 +1,4 @@
-;; *TODO* apply を減らしたい。next をカリー化したい (-cons% がエレガントでない)
+;; *FIXME* apply を減らしたい。next をカリー化したい (-cons% がエレガントでない)
 
 (define-module lmn.util.pp
   (export lambda% define% seq% or% loop%))

@@ -1,4 +1,4 @@
-;; *TODO* エラーメッセージの質を改善したい
+;; *FIXME* エラーメッセージの質を改善したい
 ;; *FIXME* 実行効率が悪すぎ (せめてエラーメッセージは lazy に構築しよう)
 
 (define-module lmn.util.peg

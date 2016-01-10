@@ -1,12 +1,16 @@
+;; *TODO* ガード部でのアトム・プロセス生成 (算術演算なども含む) を実装
+;;        instantiate-process!% を atomset だけじゃなく atom にも対応させたい
+;;        (複雑な算術演算を単純な演算の列にしたいので、毎回 atomset を作るのは効率が悪い)
+
 ;; *NOTE* match-component% は or% のようにループしない
-;;        (→ あるルールが return しても、また同じルールを適用できる可能性はある)
+;;        (あるルールが return しても、また同じルールを適用できる可能性はある)
 ;; *NOTE* プロセス文脈の直結にマッチするルールは書けない (traverse-context% の known-atoms の制約)
 ;; *NOTE* プロセス文脈は必ず１価以上の ground (traverse-context% で文脈の範囲を確定するため)
 ;; *NOTE* 一方、トラバースと検査を別に行うので、同じ文脈に複数の型を付けてよい
-;; *TODO* プロセスやアトムの再利用を実装すべき
-;; *TODO* -rassoc-port-ix の実装が後付けなので整理されていない
-;; *TODO* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙？
-;; *TODO* traverse-context% が port と arg を両方扱うのに闇を感じる (本当にバグがないかよく検証する)
+;; *FIXME* プロセスやアトムの再利用を実装すべき
+;; *FIXME* -rassoc-port-ix の実装が後付けなので整理されていない
+;; *FIXME* バックトラック時、 KNOWN-ATOMS をもとに戻すのに O(n) かけるのは微妙？
+;; *FIXME* traverse-context% が port と arg を両方扱うのに闇を感じる (本当にバグがないかよく検証する)
 
 (define-module lmn.evaluator.operations
   (use lmn.util.control)
