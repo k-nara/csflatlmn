@@ -5,11 +5,11 @@
 (add-load-path "../")
 
 (use srfi-27) ;; random
+(use lmn.util.debug)
 (use lmn.util.pp)
 (use lmn.util.stack)
 (use lmn.object.atom)
 (use lmn.object.atomset)
-;; (use lmn.object.process)
 (use lmn.evaluator.operations)
 (use lmn.evaluator.type)
 
@@ -96,11 +96,13 @@
 ;;           (print ">> " (atomset->sexp p)) (flush)
 ;;           (next p k ls tc ps e))))
 ;;
-;; (let1 proc (expression->atomset (random-expression 5 (^n (/ n 2))))
-;;   (print "initial expression: " (atomset->sexp proc))
-;;   (tracing-evaluator
-;;    :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env)
-;;   (print "resulting expression: " (atomset->sexp proc)))
+;; (begin
+;;   (set! *debug* #t)
+;;   (let1 proc (expression->atomset (random-expression 5 (^n (/ n 2))))
+;;     (print "initial expression: " (atomset->sexp proc))
+;;     (tracing-evaluator
+;;      :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env)
+;;     (print "resulting expression: " (atomset->sexp proc))))
 
 ;; ---- benchmark
 
@@ -139,12 +141,14 @@
         :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
       (print "resulting expression: " (atomset->sexp proc)))))
 
-(print "-------- 1. balanced expression")
-(run-benchmark (^n (/ n 2)) 500 100 5)
-;; (print "-------- 2. left-leaning expression")
-;; (run-benchmark (^n (- n 1)) 500 100 5)
-;; (print "-------- 3. right-leaning expression")
-;; (run-benchmark (^n 0) 500 100 5)
+(begin
+  (set! *debug* #f)
+  (print "-------- 1. balanced expression")
+  (run-benchmark (^n (/ n 2)) 500 100 5)
+  (print "-------- 2. left-leaning expression")
+  (run-benchmark (^n (- n 1)) 500 100 5)
+  (print "-------- 3. right-leaning expression")
+  (run-benchmark (^n 0) 500 100 5))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
