@@ -34,6 +34,8 @@
 ;; いくつかの引数は、受け取りはするものの手続き内で使用されない場合があ
 ;; る。
 
+(use lmn.util.debug)
+
 ;; ---- remove-processes%
 
 ;; [O(n)] PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC
@@ -41,9 +43,11 @@
 ;; になる (next が #fを返しても破壊した PROC が元に戻ることはないことに
 ;; 注意する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack tc-lstack pstack type-env)
+  (dump +1 #f "remove-processes% " indices)
   (dolist (ix indices)
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
-  (next proc known-atoms lstack tc-lstack pstack type-env))
+  (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
+    (dump -1 #f res)))
 
 ;; ---- instantiate-process!%
 
@@ -56,6 +60,7 @@
 ;; れるプロセスのポートでなく、LSTACK の K 番目のポートへの接続を表す点
 ;; が異なる 。
 (define% ((instantiate-process!% trees) proc known-atoms lstack tc-lstack pstack type-env)
+  (dump +1 #f "instantiate-process!% " trees)
   (let1 pending-ports (make-hash-table 'eq?)
     (dolist (tree trees)
       (let loop ([tree tree] [parent #f])
@@ -81,7 +86,8 @@
                    (inc! ix))
                  (when parent
                    (port-connect! parent (process-port newproc ix))))]))))
-  (next proc known-atoms lstack tc-lstack pstack type-env))
+  (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
+    (dump -1 #f res)))
 
 ;; ---- match-component%
 
@@ -145,6 +151,7 @@
 ;; プロセスの第 K ポート が LSTACK にプッシュされる。 #f がベクタ中に複
 ;; 数存在する場合は、K の小さい順にプッシュされる。
 (define% ((match-component% pat indices) proc known-atoms lstack tc-lstack pstack type-env)
+  (dump +1 #f "match-component% " (atomset->sexp pat) " " indices)
   (let* ([arity ;; 探したいプロセスの価数
           (atomset-arity pat)]
          [pat-head-index ;; indices の #f でない適当な要素のインデックス
@@ -225,9 +232,10 @@
                     (stack-set-length! lstack orig-length)
                     (stack-pop! pstack)
                     ;; next が non-#f ならループから抜ける
-                    (when res (succeed res)))))))))
+                    (when res (succeed (dump -1 #f res))))))))))
       ;; 全てのイテレーションが失敗
-      #f)))
+      (dump 0 #f "no more matches")
+      (dump -1 #f #f))))
 
 ;; [direct link に対するパターンマッチがなぜ必要ないか？]
 ;;
@@ -304,12 +312,16 @@
 ;; き、その部分プロセスの各引数の指すアトムがすべて KNOWN-ATOMS に含ま
 ;; れていることを仮定する。そうでない場合、この関数の挙動は信頼できない。
 (define% ((traverse-context% indices) proc known-atoms lstack tc-lstack pstack type-env)
+  (dump +1 #f "traverse-context% " indices)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
          [pending-ports ;; List[(Port, Index)]
           (map (^(n m) (cons (if (pair? n)
                                  (stack-ref lstack (car n))
-                                 (port-partner (stack-ref lstack n))) m)) indices (iota arity))])
+                                 (port-partner (stack-ref lstack n)))
+                             m))
+               indices
+               (iota arity))])
     (let/cc return
       (with-cleanup
           (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
@@ -356,7 +368,8 @@
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
         (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
-          (stack-pop! pstack))))))
+          (stack-pop! pstack)
+          (dump -1 #f res))))))
 
 ;; Local Variables:
 ;; eval: (put 'with-cleanup 'scheme-indent-function 1)
