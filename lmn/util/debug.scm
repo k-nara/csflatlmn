@@ -1,7 +1,7 @@
 (define-module lmn.util.debug
   (use gauche.time)
   (use srfi-13)
-  (export dump dump-level-reset
+  (export *debug* dump dump-level-reset
           make-timecounter timecounter-start timecounter-end
           timecounter-report-all timecounter-reset-all
           with-timecounter with-timecounter-report))
@@ -10,6 +10,7 @@
 
 ;; プリントデバッグ、ベンチマーク用の関数を提供する。
 
+(define *debug* #t)
 (define *debug-level* '(0))
 
 ;; デバッグメッセージを出力して、 (car ARGS) を返す。 デバッグメッセー
@@ -18,10 +19,11 @@
 ;; ベルをスタックにプッシュする。 'pop の場合、前回プッシュされたインデ
 ;; ントレベルに戻す。
 (define (dump dlevel stacking :rest args)
-  (apply print
-         (string-concatenate (make-list (max (car *debug-level*) 0) " | "))
-         (cond [(< dlevel 0) "<< "] [(> dlevel 0) ">> "] [else ""])
-         (map x->string args))
+  (when *debug*
+    (apply print
+           (string-concatenate (make-list (max (car *debug-level*) 0) " | "))
+           (cond [(< dlevel 0) "<< "] [(> dlevel 0) ">> "] [else ""])
+           (map x->string args)))
   (case stacking
     [(push) (push! *debug-level* (car *debug-level*))]
     [(pop) (pop! *debug-level*)])
