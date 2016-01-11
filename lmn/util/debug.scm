@@ -39,25 +39,29 @@
 
 ;; シンボル SYMB に新しい time-counter を関連付ける。
 (define (make-timecounter symb)
-  (hash-table-put! *time-counters* symb (make <user-time-counter>)))
+  (hash-table-put! *time-counters* symb (cons 0 (make <user-time-counter>))))
 
 ;; シンボル SYMB に関連付けられた time-counter を開始する。
 (define (timecounter-start symb)
-  (time-counter-start! (hash-table-get *time-counters* symb)))
+  (let1 pair (hash-table-get *time-counters* symb)
+    (inc! (car pair) 1)
+    (time-counter-start! (cdr pair))))
 
 ;; シンボル SYMB に関連付けられた time-counter を停止する。
 (define (timecounter-end symb)
-  (time-counter-stop! (hash-table-get *time-counters* symb)))
+  (time-counter-stop! (cdr (hash-table-get *time-counters* symb))))
 
 ;; 全ての time-counter のカウントを表示する。
 (define (timecounter-report-all)
   (print "---- timecounter report")
-  (hash-table-map *time-counters* (^(k v) (print (symbol->string k) ": " (time-counter-value v))))
+  (hash-table-map
+   *time-counters*
+   (^(k v) (print (symbol->string k) ": " (time-counter-value (cdr v)) "( count " (car v) ")")))
   (flush))
 
 ;; 全ての time-counter のカウントをリセットする。
 (define (timecounter-reset-all)
-  (hash-table-map *time-counters* (^(_ v) (time-counter-reset! v))))
+  (hash-table-map *time-counters* (^(_ v) (set-car! v 0) (time-counter-reset! (cdr v)))))
 
 (define-macro (with-timecounter symb :rest body)
   `(dynamic-wind
