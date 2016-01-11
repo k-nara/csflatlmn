@@ -65,3 +65,7 @@
 ;; (run-benchmark (^x x) 10 150)
 ;; (print "-------- 5. descending (1000-)")
 ;; (run-benchmark (^x (- 1000 x)) 10 150)
+
+;; Local Variables:
+;; eval: (put 'lambda% 'scheme-indent-function 1)
+;; End:
