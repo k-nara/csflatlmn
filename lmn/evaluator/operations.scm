@@ -36,6 +36,11 @@
 
 (use lmn.util.debug)
 
+(make-timecounter 'remove-processes%)
+(make-timecounter 'instantiate-process!%)
+(make-timecounter 'match-component%)
+(make-timecounter 'traverse-context%)
+
 ;; ---- remove-processes%
 
 ;; [O(n)] PSTACK の INDEX 番目の atomset に含まれるアトムをすべて PROC
@@ -44,8 +49,10 @@
 ;; 注意する)。
 (define% ((remove-processes!% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (dump +1 #f "remove-processes% " indices)
+  (timecounter-start 'remove-processes%)
   (dolist (ix indices)
     (atomset-map-atoms (pa$ atomset-remove-atom! proc) (stack-ref pstack ix)))
+  (timecounter-end 'remove-processes%)
   (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
     (dump -1 #f res)))
 
@@ -61,6 +68,7 @@
 ;; が異なる 。
 (define% ((instantiate-process!% trees) proc known-atoms lstack tc-lstack pstack type-env)
   (dump +1 #f "instantiate-process!% " trees)
+  (timecounter-start 'instantiate-process!%)
   (let1 pending-ports (make-hash-table 'eq?)
     (dolist (tree trees)
       (let loop ([tree tree] [parent #f])
@@ -86,6 +94,7 @@
                    (inc! ix))
                  (when parent
                    (port-connect! parent (process-port newproc ix))))]))))
+  (timecounter-end 'instantiate-process!%)
   (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
     (dump -1 #f res)))
 
@@ -152,6 +161,7 @@
 ;; 数存在する場合は、K の小さい順にプッシュされる。
 (define% ((match-component% pat indices) proc known-atoms lstack tc-lstack pstack type-env)
   (dump +1 #f "match-component% " (atomset->sexp pat) " " indices)
+  (timecounter-start 'match-component%)
   (let* ([arity ;; 探したいプロセスの価数
           (atomset-arity pat)]
          [pat-head-index ;; indices の #f でない適当な要素のインデックス
@@ -228,11 +238,13 @@
                   (dotimes (i arity)
                     (unless (vector-ref indices i)
                       (stack-push! lstack (atomset-port newproc i))))
+                  (timecounter-end 'match-component%)
                   (let1 res (next proc known-atoms lstack tc-lstack pstack type-env)
                     (stack-set-length! lstack orig-length)
                     (stack-pop! pstack)
                     ;; next が non-#f ならループから抜ける
-                    (when res (succeed (dump -1 #f res))))))))))
+                    (when res (succeed (dump -1 #f res))))
+                  (timecounter-start 'match-component%)))))))
       ;; 全てのイテレーションが失敗
       (dump 0 #f "no more matches")
       (dump -1 #f #f))))
@@ -313,6 +325,7 @@
 ;; れていることを仮定する。そうでない場合、この関数の挙動は信頼できない。
 (define% ((traverse-context% indices) proc known-atoms lstack tc-lstack pstack type-env)
   (dump +1 #f "traverse-context% " indices)
+  (timecounter-start 'traverse-context%)
   (let* ([arity (length indices)]
          [newproc (make-atomset arity)]
          [pending-ports ;; List[(Port, Index)]
@@ -367,6 +380,7 @@
         ;; (トラバース終了)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
+        (timecounter-end 'traverse-context%)
         (rlet1 res (next proc known-atoms lstack tc-lstack pstack type-env)
           (stack-pop! pstack)
           (dump -1 #f res))))))
