@@ -135,20 +135,22 @@
 (define (run-benchmark generator from count :optional [step 1])
   (dotimes (n count)
     (print (+ from (* n step))) (flush)
+    (timecounter-reset-all)
     (let1 proc (expression->atomset (random-expression (+ from (* n step)) generator))
       (time
        (expression-evaluator
         :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
-      (print "resulting expression: " (atomset->sexp proc)))))
+      (print "resulting expression: " (atomset->sexp proc))
+      (timecounter-report-all))))
 
 (begin
   (set! *debug* #f)
   (print "-------- 1. balanced expression")
-  (run-benchmark (^n (/ n 2)) 500 100 5)
+  (run-benchmark (^n (/ n 2)) 500 150 5)
   (print "-------- 2. left-leaning expression")
-  (run-benchmark (^n (- n 1)) 500 100 5)
+  (run-benchmark (^n (- n 1)) 500 150 5)
   (print "-------- 3. right-leaning expression")
-  (run-benchmark (^n 0) 500 100 5))
+  (run-benchmark (^n 0) 500 150 5))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
