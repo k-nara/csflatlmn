@@ -47,7 +47,7 @@
 ;; 化されており、適切にポートが設定されるまでこのプロセスはill-formed
 ;; である。
 (define (make-atomset :optional [arity 0])
-  (make <atomset> :atoms (make-hash-table 'string=?) :proxy (make-atom #f arity)))
+  (make <atomset> :atoms (make-hash-table 'string=?) :proxy (make-atom "" arity)))
 
 ;; ---- ports and args
 
