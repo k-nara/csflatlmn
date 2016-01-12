@@ -75,7 +75,7 @@
 ;; next が #t を返す限り next を呼び出し続け、 next が一度以上 #t を返
 ;; したなら #t を、さもなければ #f を返す。
 (define% (loop% :rest args)
-  (and (apply next args) (begin (while (apply next args)) #t)))
+  (and (apply next args) (begin (while (eq? (apply next args) #t)) #t)))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
