@@ -237,7 +237,7 @@
            #f]
           [(if-let1 port2 (atomset-port set n)
              (and (not (undefined? port2)) (port=? port port2)))
-            n]
+           n]
           [else
            (loop (+ n 1) lim)])))
 
