@@ -1,4 +1,3 @@
-;; *TODO* type-subr-unary は type-subr-atom で置き換える
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
 ;; *NOTE* "<" 型などの引数には #f を認めない
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
@@ -13,7 +12,7 @@
   (use lmn.object.atom)
   (use lmn.object.atomset)
   (use lmn.evaluator.operations)
-  (export type-check% make-type make-type-rule type-subr-int type-subr-unary type-subr-link))
+  (export type-check% make-type make-type-rule type-subr-int type-subr-link))
 
 (select-module lmn.evaluator.type)
 
@@ -228,17 +227,6 @@
   (apply or% #t (map (^r (r args)) type-rules)))
 
 ;; ---- built-in data types
-
-;; 組込み型 "unary" の実装。
-(define (type-subr-unary args)
-  (unless (= 1 (vector-length args))
-    (error "(type-check) wrong number of arguments for built-in type `int'"))
-  (let1 arg (vector-ref args 0)
-    (unless (integer? arg)
-      (error "(type-check) argument for built-in type `int' is unspecified"))
-    (lambda% (proc known-atoms local-stack global-stack pstack type-env)
-      (and (= (atom-arity (port-atom (port-partner (stack-ref local-stack arg)))) 1)
-           (next proc known-atoms local-stack global-stack pstack type-env)))))
 
 ;; 組込み型 "int" の実装。
 (define (type-subr-int args)
