@@ -16,8 +16,6 @@
 
 (select-module lmn.evaluator.type)
 
-(use lmn.util.debug)
-
 ;; ※このファイルを読む前に evaluator/operations.scm を読むべき
 
 ;; 型定義に基づいてプロセス文脈のトラバースを行うためのしくみを提供する。
@@ -82,12 +80,11 @@
 ;; を呼び出す。ただし、 next の引数にはここで新たにアロケートされたスタッ
 ;; クやatomset ではなく、この関数の引数として渡されたものをそのまま使う。
 (define% ((type-check% name args) proc known-atoms lstack tc-lstack pstack type-env)
-  (dump +1 #f "type-check% " name " " args)
   (let1 type (hash-table-get type-env name #f)
     (cond [(not type)
            (error "(type-check) call to undefined type")]
           [tc-lstack ;; TC-LSTACK が既にセットされている (= 型検査の内部で再帰的に呼ばれた)
-           (dump -1 #f ((type args) :next next proc known-atoms lstack tc-lstack pstack type-env))]
+           ((type args) :next next proc known-atoms lstack tc-lstack pstack type-env)]
           [else ;; TC-LSTACK は未セット (= これが型検査のトップレベルの呼び出し)
            ;; ローカルスタックを準備
            (let ([lstack-initial-length (stack-length lstack)]
@@ -101,7 +98,7 @@
                                    (next proc known-atoms global-stack #f pstack type-env))
                            proc (atomset-copy known-atoms) local-stack lstack (make-stack) type-env)
                  (stack-set-length! lstack lstack-initial-length)
-                 (dump -1 #f res))))])))
+                 res)))])))
 
 ;; ---- make-type
 
