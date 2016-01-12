@@ -2,7 +2,7 @@
   (use gauche.time)
   (use srfi-13)
   (export *debug* dump dump-level-reset
-          make-timecounter timecounter-start timecounter-end
+          timecounter-start timecounter-end
           timecounter-report-all timecounter-reset-all
           with-timecounter with-timecounter-report))
 
@@ -43,9 +43,10 @@
 
 ;; シンボル SYMB に関連付けられた time-counter を開始する。
 (define (timecounter-start symb)
-  (let1 pair (hash-table-get *time-counters* symb)
-    (inc! (car pair) 1)
-    (time-counter-start! (cdr pair))))
+  (cond [(hash-table-get *time-counters* symb #f)
+         => (^p (inc! (car p) 1) (time-counter-start! (cdr p)))]
+        [else
+         (make-timecounter symb) (timecounter-start symb)]))
 
 ;; シンボル SYMB に関連付けられた time-counter を停止する。
 (define (timecounter-end symb)
@@ -56,7 +57,7 @@
   (print "---- timecounter report")
   (hash-table-map
    *time-counters*
-   (^(k v) (print (symbol->string k) ": " (time-counter-value (cdr v)) "( count " (car v) ")")))
+   (^(k v) (print (symbol->string k) ": " (time-counter-value (cdr v)) " (count " (car v) ")")))
   (flush))
 
 ;; 全ての time-counter のカウントをリセットする。
@@ -72,5 +73,10 @@
 (define-macro (with-timecounter-report :rest body)
   `(dynamic-wind
      (lambda () (timecounter-reset-all))
-     (lambda () ,@body)
+     (lambda () (time ,@body))
      (lambda () (timecounter-report-all))))
+
+;; Local Variables:
+;; eval: (put 'with-timecounter 'scheme-indent-function 1)
+;; eval: (put 'with-timecounter-report 'scheme-indent-function 0)
+;; End:
