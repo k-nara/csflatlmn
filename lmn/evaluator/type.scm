@@ -225,7 +225,10 @@
 
 ;; ---- built-in data types
 
-;; 組込み型 "int" の実装。
+;; 組込み型 "int" の実装。 ARGS は長さ１のベクタで、その要素は整数 N で
+;; ある。 LOCAL-STACK の N 番目のポートのパートナーが、名前が整数である
+;; ようなアトムを指している場合、 next を呼び出しその戻り値を全体の戻り
+;; 値とする。さもなければ #f を返す。
 (define (type-subr-int args)
   (unless (= 1 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `int'"))
@@ -238,7 +241,14 @@
              (integer? (string->number (atom-name atom)))
              (next proc known-atoms local-stack global-stack pstack type-env))))))
 
-;; 組み込み型 "link" の実装。
+;; 組み込み型 "link" の実装。 ARGS は長さ２のベクタで、その要素は整数か、
+;; 整数１つからなるリストである。２つの要素の両方がリストであってはなら
+;; ない。２つの要素がそれぞれ整数 N, M の場合、 LOCAL-STACK の N 番目の
+;; ポートと M 番目のポートが互いに接続されているなら next を呼び出しそ
+;; の戻り値を全体の戻り値とする。さもなければ #f を返す。一方の要素が整
+;; 数 N, 他方の要素が整数のリスト (M) の場合、 GLOBAL-STACK の M 番目の
+;; ポートを LOCAL-STACK の N 番目にセットしてから next を呼び出し、その
+;; 戻り値を全体の戻り値とする。
 (define (type-subr-link args)
   (unless (= 2 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `link'"))
