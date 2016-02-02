@@ -1,5 +1,3 @@
-;; これ O(n) でやるにはルール内で足し算とかやる必要ありますねェ
-
 (add-load-path "../")
 
 (use srfi-27) ;; random
@@ -10,12 +8,8 @@
 (use lmn.evaluator.operations)
 (use lmn.evaluator.type)
 
-;; typedef c(Redex, H) {
-;;     H = Redex.
-;;     H = a(L, R) :- int(L), c(Redex, R).
-;;     H = a(L, R) :- c(Redex, L).
-;; }
-
+;; ;; 結果を整理する用
+;;
 ;; (defun hoge ()
 ;;   (interactive)
 ;;   (let ((res ()) initial-x initial-y)
@@ -27,6 +21,7 @@
 ;;                       (string-to-number (match-string-no-properties 1))))
 ;;               res)))
 ;;     (setq res (nreverse res) initial-x (caar res) initial-y (cdar res))
+;;     (insert (format "# of OPs, time, O(n), O(n2), O(n3)\n"))
 ;;     (dolist (p res)
 ;;       (insert (format "%d, %f, %f, %f, %f\n"
 ;;                       (car p)
@@ -34,6 +29,12 @@
 ;;                       (/ (* (car p) initial-y) initial-x)
 ;;                       (/ (* (expt (car p) 2) initial-y) (expt initial-x 2))
 ;;                       (/ (* (expt (car p) 3) initial-y) (expt initial-x 3)))))))
+
+;; typedef c(Redex, H) {
+;;     H = Redex.
+;;     H = a(L, R) :- int(L), c(Redex, R).
+;;     H = a(L, R) :- c(Redex, L).
+;; }
 
 (define type-context
   (let1 atom-add (sexp->atomset '(("a" 0 1 2)))
@@ -88,13 +89,14 @@
         :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
       (print "resulting expression: " (atomset->sexp proc)))))
 
-;; (begin
-;;   (print "-------- 1. balanced expression")
-;;   (run-benchmark (^n (/ n 2)) 100 150 5)
-;;   (print "-------- 2. left-leaning expression")
-;;   (run-benchmark (^n (- n 1)) 100 150 5)
-;;   (print "-------- 3. right-leaning expression")
-;;   (run-benchmark (^n 0) 100 150 5))
+(begin
+  ;; (print "-------- 1. balanced expression")
+  (run-benchmark (^n (/ n 2)) 50 300 5)
+  ;; (print "-------- 2. left-leaning expression")
+  ;; (run-benchmark (^n (- n 1)) 50 300 5)
+  ;; (print "-------- 3. right-leaning expression")
+  ;; (run-benchmark (^n 0) 50 300 5)
+  )
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
