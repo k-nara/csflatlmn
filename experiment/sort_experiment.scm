@@ -33,6 +33,7 @@
         (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1)) ;; l2, l3, p1
         (type-check% "t" #(3 #f)) ;; l4
         (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 4)) ;; l5, l6, p2
+        loop%
         (lambda% (proc known-atoms lstack tc-lstack pstack type-env)
                  (let ([n1 (string->number
                             (atom-name (port-atom (port-partner (stack-ref lstack 2)))))]
@@ -56,8 +57,8 @@
       (print "resulting list: " (atomset->sexp proc)))))
 
 (begin
-  (print "-------- 1. random integer (1-1000)")
-  (run-benchmark (^x (random-integer 1000)) 10 100)
+  ;; (print "-------- 1. random integer (1-1000)")
+  (run-benchmark (^x (random-integer 1000)) 10 200)
   ;; (print "-------- 2. random integer (1-3)")
   ;; (run-benchmark (^x (random-integer 3)) 10 100)
   ;; (print "-------- 3. constant (1)")

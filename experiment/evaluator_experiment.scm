@@ -88,13 +88,13 @@
         :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
       (print "resulting expression: " (atomset->sexp proc)))))
 
-(begin
-  (print "-------- 1. balanced expression")
-  (run-benchmark (^n (/ n 2)) 100 150 5)
-  (print "-------- 2. left-leaning expression")
-  (run-benchmark (^n (- n 1)) 100 150 5)
-  (print "-------- 3. right-leaning expression")
-  (run-benchmark (^n 0) 100 150 5))
+;; (begin
+;;   (print "-------- 1. balanced expression")
+;;   (run-benchmark (^n (/ n 2)) 100 150 5)
+;;   (print "-------- 2. left-leaning expression")
+;;   (run-benchmark (^n (- n 1)) 100 150 5)
+;;   (print "-------- 3. right-leaning expression")
+;;   (run-benchmark (^n 0) 100 150 5))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)

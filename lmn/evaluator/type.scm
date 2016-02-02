@@ -272,18 +272,18 @@
          (and (port-connected? (stack-ref local-stack arg1) (stack-ref local-stack arg2))
               (next proc known-atoms local-stack global-stack pstack type-env)))])))
 
-;; 組込み型 "atom" の実装。
-(define (type-subr-atom args)
-  (let ([specified-indices ()]
-        [unspecified-indices ()])
-    (dotimes (ix (vector-length args))
-      (let1 arg (vector-ref args ix)
-        (cond [(integer? arg) (push! specified-indices arg)]
-              [else (push unspecified-indices (cons (car arg) x))])))
-    (lambda% (proc known-atoms local-stack global-stack pstack type-env)
-      )
-    ;; -----------
-    ))
+;; ;; 組込み型 "atom" の実装。
+;; (define (type-subr-atom args)
+;;   (let ([specified-indices ()]
+;;         [unspecified-indices ()])
+;;     (dotimes (ix (vector-length args))
+;;       (let1 arg (vector-ref args ix)
+;;         (cond [(integer? arg) (push! specified-indices arg)]
+;;               [else (push unspecified-indices (cons (car arg) x))])))
+;;     (lambda% (proc known-atoms local-stack global-stack pstack type-env)
+;;       )
+;;     ;; -----------
+;;     ))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
