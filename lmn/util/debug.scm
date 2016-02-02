@@ -19,7 +19,7 @@
 ;; ベルをスタックにプッシュする。 'pop の場合、前回プッシュされたインデ
 ;; ントレベルに戻す。
 (define (dump dlevel stacking :rest args)
-  (when *debug*
+  (when (and *debug* (pair? args))
     (apply print
            (string-concatenate (make-list (max (car *debug-level*) 0) " | "))
            (cond [(< dlevel 0) "<< "] [(> dlevel 0) ">> "] [else ""])
