@@ -59,15 +59,31 @@
 (define (expression->atomset expr)
   (sexp->atomset (list (list "e" expr))))
 
+;; ----
+
+(use lmn.util.debug)
+
+(define% ((timecounter-boundary% symb) :rest args)
+  (with-timecounter symb (apply next args)))
+
 (define expression-evaluator
-  (seq% (match-component% (sexp->atomset '(("e" 0))) #(#f)) ;; l0, p0
+  (seq% (timecounter-boundary% 't1)
+        (match-component% (sexp->atomset '(("e" 0))) #(#f)) ;; l0, p0
+        (timecounter-boundary% 't2)
         (type-check% "c" #(#f 0)) ;; l1
+        (timecounter-boundary% 't3)
         loop%
+        (timecounter-boundary% 't4)
         (match-component% (sexp->atomset '(("a" 0 1 2))) #(#f #f 1)) ;; l2 l3, p1
+        (timecounter-boundary% 't5)
         (type-check% "int" #(2))
+        (timecounter-boundary% 't6)
         (type-check% "int" #(3))
+        (timecounter-boundary% 't7)
         (traverse-context% '(2)) ;; p2
+        (timecounter-boundary% 't8)
         (traverse-context% '(3)) ;; p3
+        (timecounter-boundary% 't9)
         (lambda% (p k ls tc ps e)
           (let* ([n1 (string->number (atom-name (port-atom (port-partner (stack-ref ls 2)))))]
                  [n2 (string->number (atom-name (port-atom (port-partner (stack-ref ls 3)))))]
@@ -77,20 +93,35 @@
             (atomset-set-port! newproc 0 (atom-port newatom 0))
             (stack-push! ps newproc))
           (begin0 (next p k ls tc ps e) (stack-pop! ps))) ;; p4
+        (timecounter-boundary% 't10)
         (instantiate-process!% '((4 1)))
+        (timecounter-boundary% 't11)
         (remove-processes!% '(1 2 3))))
 
 (define (run-benchmark generator from count :optional [step 1])
   (dotimes (n count)
     (print (+ from (* n step))) (flush)
     (let1 proc (expression->atomset (random-expression (+ from (* n step)) generator))
-      (time
-       (expression-evaluator
-        :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
+      ;; (time
+      ;;  (expression-evaluator
+      ;;   :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
+      (with-timecounter-report
+        (expression-evaluator
+         :next (^ _ #t) proc (make-atomset) (make-stack) #f (make-stack) test-env))
       (print "resulting expression: " (atomset->sexp proc)))))
 
+;; ;; trace
+;; (let1 expr (expression->atomset (random-expression 4 (^n (/ n 2))))
+;;   (set! *debug* #t)
+;;   (print "initial expression: " (atomset->sexp expr))
+;;   (expression-evaluator
+;;    :next (^ _ #t) expr (make-atomset) (make-stack) #f (make-stack) test-env)
+;;   (print "resulting expression: " (atomset->sexp expr)))
+
+;; bench
 (begin
-  ;; (print "-------- 1. balanced expression")
+  (set! *debug* #f)
+  (print "-------- 1. balanced expression")
   (run-benchmark (^n (/ n 2)) 50 300 5)
   ;; (print "-------- 2. left-leaning expression")
   ;; (run-benchmark (^n (- n 1)) 50 300 5)
