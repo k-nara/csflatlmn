@@ -23,13 +23,13 @@
     (apply print
            (string-concatenate (make-list (max (car *debug-level*) 0) " | "))
            (cond [(< dlevel 0) "<< "] [(> dlevel 0) ">> "] [else ""])
-           (map x->string args)))
+           (map x->string args))
+    (flush))
   (case stacking
     [(push) (push! *debug-level* (car *debug-level*))]
     [(pop) (pop! *debug-level*)])
   (inc! (car *debug-level*) dlevel)
-  (flush)
-  (car args))
+  (and (pair? args) (car args)))
 
 ;; dump のインデントレベルをリセットする。
 (define (dump-level-reset)
@@ -38,7 +38,7 @@
 (define *time-counters* (make-hash-table))
 
 ;; シンボル SYMB に新しい time-counter を関連付ける。
-(define (make-timecounter symb)
+(define (-make-timecounter symb)
   (hash-table-put! *time-counters* symb (cons 0 (make <user-time-counter>))))
 
 ;; シンボル SYMB に関連付けられた time-counter を開始する。
@@ -46,7 +46,7 @@
   (cond [(hash-table-get *time-counters* symb #f)
          => (^p (inc! (car p) 1) (time-counter-start! (cdr p)))]
         [else
-         (make-timecounter symb) (timecounter-start symb)]))
+         (-make-timecounter symb) (timecounter-start symb)]))
 
 ;; シンボル SYMB に関連付けられた time-counter を停止する。
 (define (timecounter-end symb)
