@@ -10,6 +10,10 @@
 (use lmn.evaluator.type)
 
 (define type-dlist
+  ;; typedef t(H, T) {
+  ;;     H = T.
+  ;;     H = [Car | Cdr] :- t(Cdr, T).
+  ;; }
   (make-type
    (make-type-rule 2 () () '("link") '([(0) (1)]))
    (make-type-rule 2 `(,(sexp->atomset '(("." 0 1 2)))) '([#f #f (0)]) '("t") '([1 (1)]))))

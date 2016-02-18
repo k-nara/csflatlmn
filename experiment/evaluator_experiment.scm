@@ -30,13 +30,12 @@
 ;;                       (/ (* (expt (car p) 2) initial-y) (expt initial-x 2))
 ;;                       (/ (* (expt (car p) 3) initial-y) (expt initial-x 3)))))))
 
-;; typedef c(Redex, H) {
-;;     H = Redex.
-;;     H = a(L, R) :- int(L), c(Redex, R).
-;;     H = a(L, R) :- c(Redex, L).
-;; }
-
 (define type-context
+  ;; typedef c(Redex, H) {
+  ;;     H = Redex.
+  ;;     H = a(L, R) :- int(L), c(Redex, R).
+  ;;     H = a(L, R) :- c(Redex, L).
+  ;; }
   (let1 atom-add (sexp->atomset '(("a" 0 1 2)))
     (make-type
      (make-type-rule 2 () () '("link") '([(0) (1)]))
