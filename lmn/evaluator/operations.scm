@@ -311,8 +311,8 @@
                              m))
                indices
                (iota arity))])
-    (let/cc return
-      (let/cc fail
+    (begin0
+      (let/cc return
         (while (pair? pending-ports)
           (let ([head-port (caar pending-ports)]
                 [head-port-ix (cdar pending-ports)])
@@ -340,7 +340,7 @@
                               [(port=? port head-port) ;; 入口のポート
                                #t]
                               [else ;; ポートでない
-                               (fail #f)]))]
+                               (return #f)]))]
                      ;; 1c. 初めてみるアトムに繋がっている -> さらにトラバース
                      [else
                       (loop partner)]))))]
@@ -351,7 +351,7 @@
                    (atomset-add-direct-link! newproc head-port-ix (cdr p)))]
              ;; 3. 始点のポートが direct link でなく、かつ他で取られている -> fail
              [else
-              (fail #f)])))
+              (return #f)])))
         ;; (トラバース終了)
         ;; スタックに push して next を呼ぶ
         (stack-push! pstack newproc)
@@ -359,8 +359,7 @@
           (stack-pop! pstack)
           (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
           (return res)))
-      (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc)
-      #f)))
+      (atomset-map-atoms (^a (atomset-remove-atom! known-atoms a)) newproc))))
 
 ;; Local Variables:
 ;; eval: (put 'while 'scheme-indent-function 'defun)
