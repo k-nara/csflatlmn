@@ -1,11 +1,12 @@
 ;; *TODO* 諸々の組み込み型の実装
 
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
+;;        $x:hoge[X, Y] { a(X), b(Y) :- x(X), y(Y). }
 ;; *NOTE* "<" 型などの引数には #f を認めない
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
 ;; *NOTE* 型の引数は型ルール中にちょうど１度出現する必要がある (subgoal-args の制約から)
 ;; *FIXME* TC-LSTACK 引数まわりの実装が後付けなので整理されていない
-;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
+;; *FIXME* atomset-copy が本来必要な回数の typerule 数倍呼ばれている
 
 (define-module lmn.evaluator.type
   (use gauche.collection) ;; map-to
@@ -218,12 +219,10 @@
 ;;
 ;; [4] は [n+4] に展開される。
 
-;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
-;; のどれかが成功すれば成功するような型検査の手続きを生成する。合成には
-;; (pa$ or% #t) を用いるので、 next の戻り値が #t である限り型検査を繰
-;; 返す。
+;; `make-type-rule' で作られた型ルールのオブジェクトを or% で合成し、型
+;; ルールのどれかが成功すれば成功するような型検査の手続きを生成する。
 (define ((make-type :rest type-rules) args)
-  (apply or% #t (map (^r (r args)) type-rules)))
+  (apply or% (map (^r (r args)) type-rules)))
 
 ;; ---- built-in data types
 
