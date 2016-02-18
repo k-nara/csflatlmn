@@ -57,17 +57,16 @@
       (print "resulting list: " (atomset->sexp proc)))))
 
 (begin
-  ;; (print "-------- 1. random integer (1-1000)")
-  (run-benchmark (^x (random-integer 1000)) 10 200)
-  ;; (print "-------- 2. random integer (1-3)")
-  ;; (run-benchmark (^x (random-integer 3)) 10 100)
-  ;; (print "-------- 3. constant (1)")
-  ;; (run-benchmark (^x 1) 10 100)
-  ;; (print "-------- 4. ascending (1-)")
-  ;; (run-benchmark (^x x) 10 100)
-  ;; (print "-------- 5. descending (1000-)")
-  ;; (run-benchmark (^x (- 1000 x)) 10 100)
-  )
+  (print "-------- 1. random integer (1-1000)")
+  (run-benchmark (^x (random-integer 1000)) 10 140)
+  (print "-------- 2. random integer (1-3)")
+  (run-benchmark (^x (random-integer 3)) 10 140)
+  (print "-------- 3. constant (1)")
+  (run-benchmark (^x 1) 10 140)
+  (print "-------- 4. ascending (1-)")
+  (run-benchmark (^x x) 10 140)
+  (print "-------- 5. descending (1000-)")
+  (run-benchmark (^x (- 1000 x)) 10 140))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)
