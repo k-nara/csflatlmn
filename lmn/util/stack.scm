@@ -11,7 +11,7 @@
 ;; ArrayList のように適宜拡大される配列で、アロケーションユニットごとに
 ;; 全体がコピーされるので注意する。
 
-(define *stack-allocation-unit* 20)
+(define *stack-allocation-unit* 100)
 
 ;; スタックのオブジェクト。
 (define-class <stack> ()
@@ -42,7 +42,7 @@
         [data (slot-ref stack 'data)])
     ;; 配列が小さければ拡大する
     (when (= length (vector-length data))
-      (let1 newdata (vector-copy data 0 (+ length *stack-allocation-unit*))
+      (let1 newdata (vector-copy data 0 (* length 2))
         (slot-set! stack 'data newdata)
         (set! data newdata)))
     ;; オブジェクトを追加

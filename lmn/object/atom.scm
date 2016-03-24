@@ -49,13 +49,19 @@
 ;; アトムを表現するオブジェクト。
 (define-class <atom> ()
   ((name :init-keyword :name)   ;; String
+   (functor :init-keyword :functor)
    (args :init-keyword :args))) ;; Vector[<portptr>]
+
+;; (atom-functor (make-atom NAME ARITY)) と同じ値を、アトムを生成せずに
+;; 返す。
+(define (functor name arity)
+  (string-append name "_" (number->string arity)))
 
 ;; 名前が NAME である ARITY-価の <atom> を生成する。生成される<atom>の
 ;; 引数はすべて未定義値で初期化されており、適切なポートをセットされるま
 ;; でこのアトムは ill-formed である。
 (define (make-atom name arity)
-  (make <atom> :name name :args (make-vector arity)))
+  (make <atom> :name name :functor (functor name arity) :args (make-vector arity)))
 
 ;; ATOM の名前を取得する。
 (define (atom-name atom)
@@ -69,7 +75,7 @@
 ;; 質をもつものである：２つのアトムのファンクタが等しいことと、２つのア
 ;; トムの名前と価数がそれぞれ等しいこととは同値。
 (define (atom-functor atom)
-  (string-append (atom-name atom) "_" (number->string (atom-arity atom))))
+  (slot-ref atom 'functor))
 
 ;; ATOM の第 N 引数 (0 から数えて) を取得する。
 (define (atom-arg atom n)
@@ -113,11 +119,6 @@
   (and (port=? (port-partner port1) port2)
        (port=? (port-partner port2) port1)))
 
-;; (atom-functor (make-atom NAME ARITY)) と同じ値を、アトムを生成せずに
-;; 返す。
-(define (functor name arity)
-  (string-append name "_" (number->string arity)))
-
 ;; ---- <atom> utilities
 
 ;; ATOM と等しい名前・価数・局所リンクを持つアトムを返す。 ATOM が自由
@@ -125,7 +126,8 @@
 ;; ムは相当する引数が正しくセットされるまで ill-formed であることに注意
 ;; する。
 (define (atom-copy atom)
-  (rlet1 newatom (make <atom> :name (atom-name atom) :args (vector-copy (slot-ref atom 'args)))
+  (rlet1 newatom (make-atom (atom-name atom) (atom-arity atom))
+    (slot-set! newatom 'args (vector-copy (slot-ref atom 'args)))
     ;; 局所リンクを解決する
     (dotimes [n (atom-arity atom)]
       (let1 arg (atom-arg atom n)

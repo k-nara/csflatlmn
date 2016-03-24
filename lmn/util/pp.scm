@@ -44,36 +44,37 @@
       (apply f1 :next (-cons% f2 next) args)))
 
 ;; １つ以上の部分手続きを :next で連結して、これらを順に実行する新しい
-;; 部分手続きをつくる。
+;; 部分手続きをつくる。最後の手続きだけは通常の関数でもよく、この場合、
+;; この関数の返すオブジェクトも通常の関数になる。
 (define (seq% :rest fns)
   (cond [(null? fns) (lambda% x (apply next x))]
         [(null? (cdr fns)) (car fns)]
         [else (-cons% (car fns) (apply seq% (cdr fns)))]))
 
-;; いくつかの部分手続きから、それらを上から、 non-#f な値が得られるまで
-;; 順に試す新しい部分手続きを作る。すべての部分手続きが #f を返した場合、
-;; #f を返す。どこかで non-#f な値が得られた場合、もし LOOP? が #f なら、
-;; それ以降の部分手続きは呼び出さず、始めて得られた この non-#f な値を
-;; ただちに返す。さもなければ、 non-#f な値を返した部分手続きを除いた残
-;; りのすべての部分手続きを再び上から順に試し、すべてが #f を返したなら
-;; ば #t を、さもなければこれを繰返す。
-(define% ((or% loop? :rest fns) :rest args)
+;; next が non-#f な値を返す限り next を呼び出し続け、 next が #f を返
+;; した時、 next が過去に一度以上 non-#f を返したなら 'loop を、さもな
+;; ければ #f を返す。
+(define% (loop% :rest args)
+  (and (apply next args) (begin (while (apply next args)) 'loop)))
+
+;; いくつかの部分手続きから、それらを上から non-#f な値が得られるまで順
+;; に試す新しい部分手続きを作る。すべての部分手続きが #f を返した場合
+;; #f を返す。どこかで non-#f な値が得られた場合、その値が 'loop でない
+;; なら、この non-#f な値をただちに返す。さもなければ、 この non-#f な
+;; 値を返した部分手続きを除く残りのすべての部分手続きを再び上から順に試
+;; し、すべてが #f を返したならば 'loop を、ある部分手続きが 'loop 以外
+;; の non-#f な値を返したならばその値を返す。 'loop を返したならばこれ
+;; を繰返す。
+(define% ((or% :rest fns) :rest args)
   (let1 skip-fn #f
     (let loop ([fns2 fns])
-      (cond [(null? fns2) (and skip-fn #t)]
+      (cond [(null? fns2) (and skip-fn 'loop)]
             [(eq? skip-fn (car fns2)) (loop (cdr fns2))]
             [else
              (let1 retval (apply (car fns2) :next next args)
-               (cond [(and (eq? retval #t) loop?)
-                      (set! skip-fn (car fns2))
-                      (loop fns)]
+               (cond [(eq? retval 'loop) (set! skip-fn (car fns2)) (loop fns)]
                      [retval => identity]
                      [else (loop (cdr fns2))]))]))))
-
-;; next が #t を返す限り next を呼び出し続け、 next が一度以上 #t を返
-;; したなら #t を、さもなければ #f を返す。
-(define% (loop% :rest args)
-  (and (apply next args) (begin (while (apply next args)) #t)))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)

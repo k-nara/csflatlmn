@@ -32,18 +32,29 @@
 (test* "define% (5)" 10 ((great?% 10) 100)) ;; curryied
 (test* "define% (6)" #f ((great?% 10) 1))
 
-(test* "define%:next (1)" 20 (succ% :next (^x (* x 2)) 9))
-(test* "define%:next (2)" 110 (sum% :next (^x (* x 2)) 1 2 3 4 5 6 7 8 9 10))
-(test* "define%:next (3)" #f (even?% :next (^x (+ x 1)) 10))
-(test* "define%:next (4)" #f ((great?% 10) :next not 100))
-(test* "define%:next (5)" #t ((great?% 10) :next not 1))
+(test* "define% with :next (1)" 20 (succ% :next (^x (* x 2)) 9))
+(test* "define% with :next (2)" 110 (sum% :next (^x (* x 2)) 1 2 3 4 5 6 7 8 9 10))
+(test* "define% with :next (3)" #f (even?% :next (^x (+ x 1)) 10))
+(test* "define% with :next (4)" #f ((great?% 10) :next not 100))
+(test* "define% with :next (5)" #t ((great?% 10) :next not 1))
 
 (test* "seq% (1)" 10 ((seq% succ% even?%) 9))
 (test* "seq% (2)" #f ((seq% succ% succ% even?%) 9))
-(test* "seq%:next" 12 ((seq% succ% succ%) :next succ% 9))
+(test* "seq% with :next" 12 ((seq% succ% succ%) :next succ% 9))
 
-(test* "or%" 9 ((or% #f even?% (great?% 100) (great?% 9) (great?% 5)) 11))
-(test* "or%:next" 11 ((or% #f even?% (great?% 10)) :next succ% 12))
+(test* "or%" 9 ((or% even?% (great?% 100) (great?% 9) (great?% 5)) 11))
+(test* "or% with :next" 11 ((or% even?% (great?% 10)) :next succ% 12))
+
+(test* "or% loop enabled" '(b a c a b a)
+       (let* ([lst ()]
+              ;; 常に失敗する
+              [fa (lambda% () (push! lst 'a) #f)]
+              ;; １回目は 'loop を、それ以降は 0 を返す
+              [fb (let1 x 'loop (lambda% () (push! lst 'b) (begin0 x (set! x 0))))]
+              ;; 常に 'loop を返す
+              [fc (lambda% () (push! lst 'c) 'loop)])
+         ((or% fa fb fc))
+         lst))
 
 ;; ----------------------
 

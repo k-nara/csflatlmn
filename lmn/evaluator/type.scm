@@ -1,9 +1,13 @@
+;; *TODO* 諸々の組み込み型の実装
 ;; *NOTE* すべての引数が #f であるような型も実行できることはできるが、認めるか？
+;;          $x:hoge[X, Y] { a(X), b(Y) :- x(X), y(Y). }
+;;        traverse-context% の制約からこれは無理：
+;;          $x:hoge[X, Y] :- X= Y.
 ;; *NOTE* "<" 型などの引数には #f を認めない
 ;; *NOTE* 型ルール右辺に同じリンク名は２度書けない (= 文脈の直結 NG, subgoal-args の制約から)
 ;; *NOTE* 型の引数は型ルール中にちょうど１度出現する必要がある (subgoal-args の制約から)
 ;; *FIXME* TC-LSTACK 引数まわりの実装が後付けなので整理されていない
-;; *FIXME* atomset-copy が本来必要な回数の typreule 数倍呼ばれている
+;; *FIXME* atomset-copy が本来必要な回数の typerule 数倍呼ばれている
 
 (define-module lmn.evaluator.type
   (use gauche.collection) ;; map-to
@@ -93,12 +97,12 @@
              (let* ([ix lstack-initial-length]
                     [args (map-to <vector> (^n (or n (begin0 (list ix) (inc! ix)))) args)])
                (stack-set-length! lstack ix)
-               (begin0
-                 ((type args)
-                  :next (^(proc _ local-stack global-stack _ type-env)
-                          (next proc known-atoms global-stack #f pstack type-env))
-                  proc (atomset-copy known-atoms) local-stack lstack (make-stack) type-env)
-                 (stack-set-length! lstack lstack-initial-length))))])))
+               (rlet1 res ((type args)
+                           :next (^(proc _ local-stack global-stack _ type-env)
+                                   (next proc known-atoms global-stack #f pstack type-env))
+                           proc (atomset-copy known-atoms) local-stack lstack (make-stack) type-env)
+                 (stack-set-length! lstack lstack-initial-length)
+                 res)))])))
 
 ;; ---- make-type
 
@@ -216,16 +220,17 @@
 ;;
 ;; [4] は [n+4] に展開される。
 
-;; `make-type-rule' で作られた型ルールのオブジェクトを合成し、型ルール
-;; のどれかが成功すれば成功するような型検査の手続きを生成する。合成には
-;; (pa$ or% #t) を用いるので、 next の戻り値が #t である限り型検査を繰
-;; 返す。
+;; `make-type-rule' で作られた型ルールのオブジェクトを or% で合成し、型
+;; ルールのどれかが成功すれば成功するような型検査の手続きを生成する。
 (define ((make-type :rest type-rules) args)
-  (apply or% #t (map (^r (r args)) type-rules)))
+  (apply or% (map (^r (r args)) type-rules)))
 
 ;; ---- built-in data types
 
-;; 組込み型 "int" の実装。
+;; 組込み型 "int" の実装。 ARGS は長さ１のベクタで、その要素は整数 N で
+;; ある。 LOCAL-STACK の N 番目のポートのパートナーが、名前が整数である
+;; ようなアトムを指している場合、 next を呼び出しその戻り値を全体の戻り
+;; 値とする。さもなければ #f を返す。
 (define (type-subr-int args)
   (unless (= 1 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `int'"))
@@ -233,11 +238,19 @@
     (unless (integer? arg)
       (error "(type-check) argument for built-in type `int' is unspecified"))
     (lambda% (proc known-atoms local-stack global-stack pstack type-env)
-      (and (integer?
-            (string->number (atom-name (port-atom (port-partner (stack-ref local-stack arg))))))
-           (next proc known-atoms local-stack global-stack pstack type-env)))))
+      (let1 atom (port-atom (port-partner (stack-ref local-stack arg)))
+        (and (= (atom-arity atom) 1)
+             (integer? (string->number (atom-name atom)))
+             (next proc known-atoms local-stack global-stack pstack type-env))))))
 
-;; 組み込み型 "link" の実装。
+;; 組み込み型 "link" の実装。 ARGS は長さ２のベクタで、その要素は整数か、
+;; 整数１つからなるリストである。２つの要素の両方がリストであってはなら
+;; ない。２つの要素がそれぞれ整数 N, M の場合、 LOCAL-STACK の N 番目の
+;; ポートと M 番目のポートが互いに接続されているなら next を呼び出しそ
+;; の戻り値を全体の戻り値とする。さもなければ #f を返す。一方の要素が整
+;; 数 N, 他方の要素が整数のリスト (M) の場合、 GLOBAL-STACK の M 番目の
+;; ポートを LOCAL-STACK の N 番目にセットしてから next を呼び出し、その
+;; 戻り値を全体の戻り値とする。
 (define (type-subr-link args)
   (unless (= 2 (vector-length args))
     (error "(type-check) wrong number of arguments for built-in type `link'"))
@@ -260,6 +273,19 @@
        (lambda% (proc known-atoms local-stack global-stack pstack type-env)
          (and (port-connected? (stack-ref local-stack arg1) (stack-ref local-stack arg2))
               (next proc known-atoms local-stack global-stack pstack type-env)))])))
+
+;; ;; 組込み型 "atom" の実装。
+;; (define (type-subr-atom args)
+;;   (let ([specified-indices ()]
+;;         [unspecified-indices ()])
+;;     (dotimes (ix (vector-length args))
+;;       (let1 arg (vector-ref args ix)
+;;         (cond [(integer? arg) (push! specified-indices arg)]
+;;               [else (push unspecified-indices (cons (car arg) x))])))
+;;     (lambda% (proc known-atoms local-stack global-stack pstack type-env)
+;;       )
+;;     ;; -----------
+;;     ))
 
 ;; Local Variables:
 ;; eval: (put 'lambda% 'scheme-indent-function 1)

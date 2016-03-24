@@ -1,5 +1,5 @@
 (define-module lmn.util.list
-  (export *debug* *debug-level* dump delete1! alist-delete1!))
+  (export delete1! alist-delete1!))
 
 (select-module lmn.util.list)
 
