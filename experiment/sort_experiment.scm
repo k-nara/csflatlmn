@@ -32,6 +32,9 @@
     (sexp->atomset (list (list "a" sexp)))))
 
 (define list-sorter
+  ;; a(L0), $d1:t[L0, L1], '.'(L2, L3, L1), $d2:t[L3, L4], '.'(L5, L6, L4) {
+  ;;   L2 = $n1, L5 = $n2 :- $n1 > $n2 | L2 = $n2, L5 = $n1.
+  ;; }
   (seq% (match-component% (sexp->atomset '(("a" 0))) #(#f)) ;; l0, p0
         (type-check% "t" #(0 #f)) ;; l1
         (match-component% (sexp->atomset '(("." 0 1 2))) #(#f #f 1)) ;; l2, l3, p1

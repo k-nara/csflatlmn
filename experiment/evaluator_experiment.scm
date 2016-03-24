@@ -61,6 +61,9 @@
   (sexp->atomset (list (list "e" expr))))
 
 (define expression-evaluator
+  ;; e(L0), $c:c(L1, L0) {
+  ;;     a($n1:int, $n2:int, L1) :- $m <- $n1 + $n2 | $m[L1].
+  ;; }
   (seq% (match-component% (sexp->atomset '(("e" 0))) #(#f)) ;; l0, p0
         (type-check% "c" #(#f 0)) ;; l1
         loop%
